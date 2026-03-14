@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CyberAI Navigator — Career Guidance Tool</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div class="header-left">
+        <div class="logo-icon">⬡</div>
+        <div>
+          <h1>CYBERAI NAVIGATOR</h1>
+          <p class="subtitle">Career Guidance Tool · AI &amp; Cybersecurity Pathways</p>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="stat-pill" id="xp-display">Progress: <span>0</span></div>
+        <div class="stat-pill" id="level-display">Learning Stage: <span>1</span></div>
+        <button id="reset-btn" title="Reset all progress">↺ Reset</button>
+      </div>
+    </header>
+
+    <div id="main-layout">
+      <div id="tree-container">
+        <div id="intro-banner">
+          <div id="intro-banner-body">
+            <span class="intro-banner-icon">💡</span>
+            <span><strong>How to use this map:</strong> Each node is a skill or career. Connected nodes show dependencies — you must build lower skills before reaching higher ones. Click any node or career card to explore its pathway, required skills, courses, and projects.</span>
+          </div>
+          <button id="intro-dismiss" title="Dismiss">✕</button>
+        </div>
+        <div id="zoom-controls">
+          <button id="zoom-in">+</button>
+          <button id="zoom-fit">⊙</button>
+          <button id="zoom-out">−</button>
+        </div>
+        <svg id="skill-tree" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <filter id="glow-blue">
+              <feGaussianBlur stdDeviation="4" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <filter id="glow-green">
+              <feGaussianBlur stdDeviation="4" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <filter id="glow-gold">
+              <feGaussianBlur stdDeviation="6" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <filter id="glow-purple">
+              <feGaussianBlur stdDeviation="6" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <radialGradient id="node-core" cx="50%" cy="35%" r="60%">
+              <stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/>
+              <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <g id="tree-group"></g>
+        </svg>
+      </div>
+
+      <aside id="detail-panel">
+        <div id="panel-empty">
+          <p class="guide-cta">← Select a career from the panel, or click any node in the map</p>
+        </div>
+        <div id="panel-content" class="hidden">
+          <div id="panel-tier-badge"></div>
+          <div id="panel-icon-ring">
+            <div id="panel-icon"></div>
+          </div>
+          <h2 id="panel-title"></h2>
+          <p id="panel-type-label"></p>
+          <p id="panel-desc"></p>
+          <div id="panel-soft-section" class="panel-section hidden">
+            <h4>Soft Skills</h4>
+            <div id="panel-soft"></div>
+          </div>
+          <div id="panel-careers-section" class="panel-section hidden">
+            <h4>Opens Pathways To</h4>
+            <div id="panel-careers"></div>
+          </div>
+          <div id="panel-tools-section" class="panel-section hidden">
+            <div id="panel-tools"></div>
+          </div>
+          <div id="panel-prereqs-section" class="panel-section hidden">
+            <div id="panel-prereqs"></div>
+          </div>
+          <div id="panel-learn-section" class="panel-section hidden">
+            <h4>Learning Sources</h4>
+            <div id="panel-learn"></div>
+          </div>
+          <button id="unlock-btn" class="hidden">Complete Competency</button>
+          <button id="locked-btn" class="hidden" disabled>🔒 Build prerequisite skills first</button>
+        </div>
+      </aside>
+
+      <!-- ── Career Mapping Panel ── -->
+      <aside id="career-mapping">
+        <div class="cm-header">
+          <div class="cm-header-icon">⬡</div>
+          <div>
+            <h2>CAREER<br>PATHWAYS</h2>
+            <p class="cm-subtitle">Pick a target role to trace its full skill pathway</p>
+          </div>
+        </div>
+
+        <!-- AI Systems -->
+        <div class="cm-section">
+          <div class="cm-section-label ai">◈ AI Systems</div>
+          <div class="cm-card" data-skill="ml_eng">
+            <div class="cm-avatar ai"><div class="cm-avatar-inner">🤖</div><div class="cm-avatar-ring ai"></div></div>
+            <div class="cm-card-info">
+              <span class="cm-name">Machine Learning<br>Engineer</span>
+            </div>
+            <div class="cm-lock-dot" id="cm-dot-ml_eng"></div>
+          </div>
+          <div class="cm-card" data-skill="ai_researcher">
+            <div class="cm-avatar ai"><div class="cm-avatar-inner">🧬</div><div class="cm-avatar-ring ai"></div></div>
+            <div class="cm-card-info">
+              <span class="cm-name">AI Research<br>Scientist</span>
+            </div>
+            <div class="cm-lock-dot" id="cm-dot-ai_researcher"></div>
+          </div>
+          <div class="cm-card" data-skill="data_sci">
+            <div class="cm-avatar ai"><div class="cm-avatar-inner">📊</div><div class="cm-avatar-ring ai"></div></div>
+            <div class="cm-card-info">
+              <span class="cm-name">Data<br>Scientist</span>
+            </div>
+            <div class="cm-lock-dot" id="cm-dot-data_sci"></div>
+          </div>
+          <div class="cm-card" data-skill="applied_ai_eng">
+            <div class="cm-avatar ai"><div class="cm-avatar-inner">⚡</div><div class="cm-avatar-ring ai"></div></div>
+            <div class="cm-card-info">
+              <span class="cm-name">Applied AI<br>Engineer</span>
+            </div>
+            <div class="cm-lock-dot" id="cm-dot-applied_ai_eng"></div>
+          </div>
+        </div>
+
+        <!-- Cybersecurity -->
+        <div class="cm-section">
+          <div class="cm-section-label cyber">◈ Cybersecurity</div>
+          <div class="cm-card" data-skill="sec_analyst">
+            <div class="cm-avatar cyber"><div class="cm-avatar-inner">🔎</div><div class="cm-avatar-ring cyber"></div></div>
+            <div class="cm-card-info">
+              <span class="cm-name">Security<br>Analyst</span>
+            </div>
+            <div class="cm-lock-dot" id="cm-dot-sec_analyst"></div>
+          </div>
+          <div class="cm-card" data-skill="pen_tester">
+            <div class="cm-avatar cyber"><div class="cm-avatar-inner">🎯</div><div class="cm-avatar-ring cyber"></div></div>
+            <div class="cm-card-info">
+              <span class="cm-name">Penetration<br>Tester</span>
+            </div>
+            <div class="cm-lock-dot" id="cm-dot-pen_tester"></div>
+          </div>
+          <div class="cm-card" data-skill="sec_arch">
+            <div class="cm-avatar cyber"><div class="cm-avatar-inner">🏛</div><div class="cm-avatar-ring cyber"></div></div>
+            <div class="cm-card-info">
+              <span class="cm-name">Security<br>Architect</span>
+            </div>
+            <div class="cm-lock-dot" id="cm-dot-sec_arch"></div>
+          </div>
+          <div class="cm-card" data-skill="ir_analyst">
+            <div class="cm-avatar cyber"><div class="cm-avatar-inner">🚨</div><div class="cm-avatar-ring cyber"></div></div>
+            <div class="cm-card-info">
+              <span class="cm-name">Incident Response<br>Engineer</span>
+            </div>
+            <div class="cm-lock-dot" id="cm-dot-ir_analyst"></div>
+          </div>
+        </div>
+
+        <!-- Edge / Embedded AI -->
+        <div class="cm-section">
+          <div class="cm-section-label edge">◈ Edge / Embedded AI</div>
+          <div class="cm-card" data-skill="edge_ai_eng">
+            <div class="cm-avatar edge"><div class="cm-avatar-inner">📡</div><div class="cm-avatar-ring edge"></div></div>
+            <div class="cm-card-info">
+              <span class="cm-name">Edge AI<br>Engineer</span>
+            </div>
+            <div class="cm-lock-dot" id="cm-dot-edge_ai_eng"></div>
+          </div>
+          <div class="cm-card" data-skill="embedded_ml_eng">
+            <div class="cm-avatar edge"><div class="cm-avatar-inner">🔧</div><div class="cm-avatar-ring edge"></div></div>
+            <div class="cm-card-info">
+              <span class="cm-name">Embedded ML<br>Engineer</span>
+            </div>
+            <div class="cm-lock-dot" id="cm-dot-embedded_ml_eng"></div>
+          </div>
+          <div class="cm-card" data-skill="robotics_eng">
+            <div class="cm-avatar edge"><div class="cm-avatar-inner">🦾</div><div class="cm-avatar-ring edge"></div></div>
+            <div class="cm-card-info">
+              <span class="cm-name">Robotics / Autonomous<br>Systems Engineer</span>
+            </div>
+            <div class="cm-lock-dot" id="cm-dot-robotics_eng"></div>
+          </div>
+          <div class="cm-card" data-skill="iot_sec_eng">
+            <div class="cm-avatar edge"><div class="cm-avatar-inner">🌐</div><div class="cm-avatar-ring edge"></div></div>
+            <div class="cm-card-info">
+              <span class="cm-name">IoT Security<br>Engineer</span>
+            </div>
+            <div class="cm-lock-dot" id="cm-dot-iot_sec_eng"></div>
+          </div>
+        </div>
+
+        <!-- AI + Cyber Hybrid -->
+        <div class="cm-section hybrid-section">
+          <div class="cm-section-label hybrid">⬡ AI + Cyber Hybrid</div>
+          <div class="cm-card" data-skill="ai_sec_eng">
+            <div class="cm-avatar hybrid"><div class="cm-avatar-inner">⬡</div><div class="cm-avatar-ring hybrid"></div></div>
+            <div class="cm-card-info">
+              <span class="cm-name">AI Security<br>Engineer</span>
+            </div>
+            <div class="cm-lock-dot" id="cm-dot-ai_sec_eng"></div>
+          </div>
+          <div class="cm-card" data-skill="adv_ml_eng">
+            <div class="cm-avatar hybrid"><div class="cm-avatar-inner">⚔</div><div class="cm-avatar-ring hybrid"></div></div>
+            <div class="cm-card-info">
+              <span class="cm-name">Adversarial ML<br>Engineer</span>
+            </div>
+            <div class="cm-lock-dot" id="cm-dot-adv_ml_eng"></div>
+          </div>
+          <div class="cm-card" data-skill="threat_intel">
+            <div class="cm-avatar hybrid"><div class="cm-avatar-inner">🔍</div><div class="cm-avatar-ring hybrid"></div></div>
+            <div class="cm-card-info">
+              <span class="cm-name">Threat Intel Engineer<br>(AI-driven)</span>
+            </div>
+            <div class="cm-lock-dot" id="cm-dot-threat_intel"></div>
+          </div>
+          <div class="cm-card" data-skill="resilient_auto_eng">
+            <div class="cm-avatar hybrid"><div class="cm-avatar-inner">🛡</div><div class="cm-avatar-ring hybrid"></div></div>
+            <div class="cm-card-info">
+              <span class="cm-name">Resilient Autonomous<br>Systems Engineer</span>
+            </div>
+            <div class="cm-lock-dot" id="cm-dot-resilient_auto_eng"></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <div id="progress-bar-wrap">
+      <div id="progress-labels">
+        <span>EXPLORE</span>
+        <span>BUILD SKILLS</span>
+        <span>SPECIALIZE</span>
+        <span>CAREER READY</span>
+      </div>
+      <div id="progress-bar">
+        <div id="progress-fill"></div>
+        <div id="progress-marker" class="marker m1">◆</div>
+        <div id="progress-marker" class="marker m2">◆</div>
+        <div id="progress-marker" class="marker m3">◆</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="hidden"></div>
+  <script src="data.js"></script>
+  <script src="tree.js"></script>
+</body>
+</html>
