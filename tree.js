@@ -93,6 +93,25 @@ function hexPath(R) {
   const s = R * Math.sqrt(3) / 2, h = R / 2;
   return `M 0,${-R} L ${s},${-h} L ${s},${h} L 0,${R} L ${-s},${h} L ${-s},${-h} Z`;
 }
+// Diamond (rotated square) path for Dispositions layer
+function diamondPath(R) {
+  return `M 0,${-R} L ${R},0 L 0,${R} L ${-R},0 Z`;
+}
+// CC2020 layer colors (reference style: Knowledge=gold, Skills=blue, Dispositions=purple)
+function layerColor(layer) {
+  if (layer === "knowledge") return "#f5c842";   // gold — foundations
+  if (layer === "skills") return "#3b8bff";      // blue — skills
+  if (layer === "dispositions") return "#c86bff"; // purple — career readiness
+  return null;
+}
+// When a career is selected, its path uses this job’s branch color (each job = its own path color)
+function getPathColor() {
+  const id = state.selected;
+  if (!id) return null;
+  const skill = SKILL_MAP[id];
+  if (skill && skill.tier === "career") return branchColor(skill.branch);
+  return null;
+}
 
 // ── Build tree ────────────────────────────────────────────────────────────
 function buildTree() {
@@ -105,13 +124,14 @@ function buildTree() {
   const CH = 1060;  // canvas height (900  + OY + bottom padding)
 
 
-  // ── CC2020 three layers: Knowledge → Skills → Dispositions (Sec. 5.2) ───
+  // ── CC2020 three layers: Knowledge (gold) → Skills (blue) → Dispositions (purple) ───
   const t1 = 30 + OY, t2 = 290 + OY, t3 = 590 + OY;
   const bandRects = [
-    { y: 0, h: t1 + 30, fill: "rgba(200,107,255,0.06)", label: "DISPOSITIONS · Career Readiness", labelY: t1 - 8 },
-    { y: t1 + 30, h: t2 - (t1 + 30), fill: "rgba(59,139,255,0.06)", label: "SKILLS", labelY: (t1 + 30 + t2) / 2 - 8 },
-    { y: t2, h: CH - t2, fill: "rgba(48,217,128,0.05)", label: "KNOWLEDGE", labelY: (t2 + t3) / 2 - 8 },
+    { y: 0, h: t1 + 30, fill: "rgba(200,107,255,0.08)", label: "DISPOSITIONS · Career Readiness", labelY: t1 - 8 },
+    { y: t1 + 30, h: t2 - (t1 + 30), fill: "rgba(59,139,255,0.07)", label: "SKILLS", labelY: (t1 + 30 + t2) / 2 - 8 },
+    { y: t2, h: CH - t2, fill: "rgba(245,200,66,0.06)", label: "KNOWLEDGE", labelY: (t2 + t3) / 2 - 8 },
   ];
+  const pathColor = getPathColor(); // job-specific path color when a career is selected
   for (const b of bandRects) {
     treeGroup.appendChild(svgEl("rect", {
       x: 0, y: b.y, width: CW, height: b.h,
@@ -131,7 +151,31 @@ function buildTree() {
     lbl.textContent = b.label;
     treeGroup.appendChild(lbl);
   }
-  // Completing a competency = progressing through the 3 layers (CC2020)
+  // Legend: Knowledge / Skills / Dispositions each have their own color
+  const legendY = CH - 42;
+  const leg = (x, label, col) => {
+    const g = svgEl("g", { "pointer-events": "none" });
+    g.appendChild(svgEl("circle", { cx: x, cy: legendY - 6, r: 6, fill: "none", stroke: col, "stroke-width": 2 }));
+    const t = svgEl("text", { x: x + 14, y: legendY - 6, "font-size": 10, fill: "rgba(255,255,255,0.7)", "dominant-baseline": "middle" });
+    t.textContent = label;
+    g.appendChild(t);
+    return g;
+  };
+  treeGroup.appendChild(leg(14, "Knowledge", "#f5c842"));
+  treeGroup.appendChild(leg(120, "Skills", "#3b8bff"));
+  treeGroup.appendChild(leg(200, "Dispositions", "#c86bff"));
+  if (pathColor && state.selected) {
+    const sel = SKILL_MAP[state.selected];
+    const jobLabel = sel ? sel.label.replace(/\n/g, " ") : "Career";
+    const pathLeg = svgEl("text", {
+      x: 320, y: legendY - 6,
+      "font-size": 10, fill: "rgba(255,255,255,0.85)", "dominant-baseline": "middle",
+      "font-weight": "700", "pointer-events": "none",
+    });
+    pathLeg.textContent = `Your path → ${jobLabel}`;
+    pathLeg.setAttribute("fill", pathColor);
+    treeGroup.appendChild(pathLeg);
+  }
   const mapFraming = svgEl("text", {
     x: 14, y: CH - 18,
     "font-size": 10, fill: "rgba(255,255,255,0.35)",
@@ -158,9 +202,10 @@ function buildTree() {
     const midY = (fy + ty) / 2;
 
     const baseWidth = 3.2;
-    const activeWidth = 7.5;
+    const activeWidth = 8;
     const baseOpacity = unlocked ? 0.8 : 0.25;
-    // Orthogonal (stepped) edges for schematic/diagram look
+    // When a career is selected, path edges use that job’s color (each job = its own path)
+    const edgeStroke = (onPath && pathColor) ? pathColor : null;
     const pathEl = svgEl("path", {
       d: `M ${fx} ${fy} V ${midY} H ${tx} V ${ty}`,
       class: `edge-line ${unlocked ? "unlocked" : "locked"} ${branchClass(to.branch)}`,
@@ -169,31 +214,35 @@ function buildTree() {
       opacity: hasActivePath ? (onPath ? 1 : 0.05) : baseOpacity,
       "stroke-linejoin": "round",
     });
+    if (edgeStroke) pathEl.setAttribute("stroke", edgeStroke);
     treeGroup.appendChild(pathEl);
   }
 
-  // ── Nodes (skip panel-only nodes) ─────────────────────────────────────
+  // ── Nodes: shape and color by CC2020 layer (Knowledge=circle, Skills=hex, Dispositions=diamond)
+  const layerBadge = { knowledge: "K", skills: "S", dispositions: "D" };
   for (const skill of SKILLS) {
     if (skill.panelOnly) continue;
 
     const isUnlocked = state.unlocked.has(skill.id);
     const isSelected = state.selected === skill.id;
     const onPath     = !hasActivePath || state.activePath.has(skill.id);
-    const bc         = branchClass(skill.branch);
-    const color      = branchColor(skill.branch);
-    const boost      = RADIUS_BOOST[skill.tier] || 0;
-    const r          = skill.radius + boost;          // boosted radius
-    const iconSize   = ICON_SIZE[skill.tier] || 20;
+    const layer      = skill.cc2020Layer || "skills";
+    const layerCol   = layerColor(layer) || branchColor(skill.branch);
+    // When a career is selected, path nodes use that job’s color (each job = its own path)
+    const color      = (onPath && pathColor) ? pathColor : layerCol;
+    const boost     = RADIUS_BOOST[skill.tier] || 0;
+    const r         = skill.radius + boost;
+    const iconSize  = ICON_SIZE[skill.tier] || 20;
     const isCareer   = skill.tier === "career";
 
     const g = svgEl("g", {
       id: `node-${skill.id}`,
       transform: `translate(${skill.x + OX},${skill.y + OY})`,
-      class: "node-group",
+      class: `node-group node-layer-${layer}`,
       opacity: hasActivePath ? (onPath ? 1 : 0.12) : 1,
     });
 
-    // ── Ambient glow — always present but stronger on path
+    // Glow — layer color
     const glowOuter = svgEl("circle", {
       r: r + 22,
       fill: color,
@@ -209,65 +258,83 @@ function buildTree() {
     g.appendChild(glowOuter);
     g.appendChild(glowInner);
 
-    // ── Outer hex ring
     const outerRingWidth = isCareer ? 3.2 : (skill.tier === "root" ? 2.8 : 2.2);
     const outerRingOpacity = hasActivePath ? (onPath ? 0.9 : 0.18) : 0.5;
-    const outerHex = svgEl("path", {
-      d: hexPath(r + 5),
-      fill: "none",
-      stroke: color,
-      "stroke-width": outerRingWidth,
-      "stroke-linejoin": "round",
-      opacity: outerRingOpacity,
-      "pointer-events": "none",
-    });
-    g.appendChild(outerHex);
-
-    // ── Main hexagon
-    const baseFill  = hasActivePath && onPath
+    const baseFill = hasActivePath && onPath
       ? `color-mix(in srgb, ${color} 28%, #060712)`
       : isUnlocked ? "#141624" : "#060712";
-    const strokeW   = isSelected ? 4.4 : (hasActivePath && onPath ? 3.6 : 2.6);
+    const strokeW = isSelected ? 4.4 : (hasActivePath && onPath ? 3.6 : 2.6);
     const strokeOpacity = hasActivePath && onPath ? 1 : (isUnlocked ? 0.85 : 0.35);
-    const mainHex = svgEl("path", {
-      d: hexPath(r),
-      fill: baseFill,
-      stroke: color,
-      "stroke-width": strokeW,
-      "stroke-linejoin": "round",
-      "stroke-opacity": strokeOpacity,
-    });
-    g.appendChild(mainHex);
 
-    // ── Inner highlight (circle for radial gradient)
+    // Shape by layer: Knowledge = circle, Skills = hex, Dispositions = diamond
+    const mainPathD = layer === "knowledge" ? null : (layer === "dispositions" ? diamondPath(r) : hexPath(r));
+    const outerPathD = layer === "knowledge" ? null : (layer === "dispositions" ? diamondPath(r + 5) : hexPath(r + 5));
+
+    if (layer === "knowledge") {
+      const outerRing = svgEl("circle", {
+        r: r + 5, fill: "none", stroke: color,
+        "stroke-width": outerRingWidth, opacity: outerRingOpacity,
+        "pointer-events": "none",
+      });
+      g.appendChild(outerRing);
+      const mainCircle = svgEl("circle", {
+        r, fill: baseFill, stroke: color,
+        "stroke-width": strokeW, "stroke-opacity": strokeOpacity,
+      });
+      g.appendChild(mainCircle);
+    } else {
+      const outerRing = svgEl("path", {
+        d: outerPathD, fill: "none", stroke: color,
+        "stroke-width": outerRingWidth, "stroke-linejoin": "round",
+        opacity: outerRingOpacity, "pointer-events": "none",
+      });
+      g.appendChild(outerRing);
+      const mainShape = svgEl("path", {
+        d: mainPathD, fill: baseFill, stroke: color,
+        "stroke-width": strokeW, "stroke-linejoin": "round",
+        "stroke-opacity": strokeOpacity,
+      });
+      g.appendChild(mainShape);
+    }
+
     const highlight = svgEl("circle", {
       r: r * 0.6, fill: "url(#node-core)", "pointer-events": "none",
     });
     g.appendChild(highlight);
 
-    // ── Selected hex ring
     if (isSelected) {
-      const selHex = svgEl("path", {
-        d: hexPath(r + 8),
-        fill: "none",
-        stroke: color, "stroke-width": 2.5, "stroke-linejoin": "round",
-        opacity: 0.6, "pointer-events": "none",
-      });
-      g.appendChild(selHex);
+      const selR = r + 8;
+      if (layer === "knowledge") {
+        const selRing = svgEl("circle", { r: selR, fill: "none", stroke: color, "stroke-width": 2.5, opacity: 0.6, "pointer-events": "none" });
+        g.appendChild(selRing);
+      } else {
+        const selPathD = layer === "dispositions" ? diamondPath(selR) : hexPath(selR);
+        const selRing = svgEl("path", { d: selPathD, fill: "none", stroke: color, "stroke-width": 2.5, "stroke-linejoin": "round", opacity: 0.6, "pointer-events": "none" });
+        g.appendChild(selRing);
+      }
     }
 
-    // ── Icon — large, centered, no labels
     const iconBrightness = hasActivePath && onPath ? 1 : (isUnlocked ? 0.75 : 0.35);
     const iconEl = svgEl("text", {
       y: 1, "font-size": iconSize,
       "text-anchor": "middle", "dominant-baseline": "central",
-      opacity: iconBrightness,
-      "pointer-events": "none",
+      opacity: iconBrightness, "pointer-events": "none",
     });
     iconEl.textContent = skill.icon;
     g.appendChild(iconEl);
 
-    // ── Completion checkmark
+    // K / S / D badge on the tree so the three layers are visible on the map
+    const badge = layerBadge[layer];
+    if (badge) {
+      const badgeEl = svgEl("text", {
+        y: r + 18, "font-size": 11, "font-weight": "700",
+        fill: color, "text-anchor": "middle", "dominant-baseline": "central",
+        opacity: hasActivePath && onPath ? 1 : 0.7, "pointer-events": "none",
+      });
+      badgeEl.textContent = badge;
+      g.appendChild(badgeEl);
+    }
+
     if (isUnlocked && skill.id !== "root") {
       const ck = svgEl("text", {
         x: r - 5, y: -(r - 5),
