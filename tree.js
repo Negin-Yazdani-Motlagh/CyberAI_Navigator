@@ -88,6 +88,12 @@ function svgEl(tag, attrs = {}) {
   return el;
 }
 
+// Flat-top hexagon path centered at 0,0 with "radius" R (vertex distance)
+function hexPath(R) {
+  const s = R * Math.sqrt(3) / 2, h = R / 2;
+  return `M 0,${-R} L ${s},${-h} L ${s},${h} L 0,${R} L ${-s},${h} L ${-s},${-h} Z`;
+}
+
 // ── Build tree ────────────────────────────────────────────────────────────
 function buildTree() {
   treeGroup.innerHTML = "";
@@ -99,33 +105,39 @@ function buildTree() {
   const CH = 1060;  // canvas height (900  + OY + bottom padding)
 
 
-  // ── Horizontal tier band labels (3-layer competency framework) ────────
-  const tierBands = [
-    { y: 590 + OY, label: "CORE FOUNDATION"      },
-    { y: 290 + OY, label: "COMPETENCY CLUSTERS"  },
-    { y:  30 + OY, label: "CAREER READINESS"     },
+  // ── CC2020 three layers: Knowledge → Skills → Dispositions (Sec. 5.2) ───
+  const t1 = 30 + OY, t2 = 290 + OY, t3 = 590 + OY;
+  const bandRects = [
+    { y: 0, h: t1 + 30, fill: "rgba(200,107,255,0.06)", label: "DISPOSITIONS · Career Readiness", labelY: t1 - 8 },
+    { y: t1 + 30, h: t2 - (t1 + 30), fill: "rgba(59,139,255,0.06)", label: "SKILLS", labelY: (t1 + 30 + t2) / 2 - 8 },
+    { y: t2, h: CH - t2, fill: "rgba(48,217,128,0.05)", label: "KNOWLEDGE", labelY: (t2 + t3) / 2 - 8 },
   ];
-  for (const b of tierBands) {
+  for (const b of bandRects) {
+    treeGroup.appendChild(svgEl("rect", {
+      x: 0, y: b.y, width: CW, height: b.h,
+      fill: b.fill, "pointer-events": "none",
+    }));
     treeGroup.appendChild(svgEl("line", {
-      x1: 0, y1: b.y, x2: CW, y2: b.y,
-      stroke: "rgba(255,255,255,0.06)", "stroke-width": 1,
+      x1: 0, y1: b.y + b.h, x2: CW, y2: b.y + b.h,
+      stroke: "rgba(255,255,255,0.08)", "stroke-width": 1,
+      "pointer-events": "none",
     }));
     const lbl = svgEl("text", {
-      x: 14, y: b.y + 22,
-      "font-size": 13, fill: "rgba(255,255,255,0.32)",
-      "letter-spacing": "3", "font-weight": "700",
+      x: 20, y: b.labelY,
+      "font-size": 12, fill: "rgba(255,255,255,0.45)",
+      "letter-spacing": "2.5", "font-weight": "700",
       "pointer-events": "none",
     });
     lbl.textContent = b.label;
     treeGroup.appendChild(lbl);
   }
-  // Map framing: competency = knowledge + skills + dispositions (CC2020)
+  // Completing a competency = progressing through the 3 layers (CC2020)
   const mapFraming = svgEl("text", {
     x: 14, y: CH - 18,
-    "font-size": 10, fill: "rgba(255,255,255,0.28)",
+    "font-size": 10, fill: "rgba(255,255,255,0.35)",
     "letter-spacing": "1.5", "pointer-events": "none",
   });
-  mapFraming.textContent = "Competency = Knowledge + Skills + Dispositions (CC2020)";
+  mapFraming.textContent = "Completing a competency = Knowledge → Skills → Dispositions (CC2020 Sec. 5.2)";
   treeGroup.appendChild(mapFraming);
 
   // ── Node radius scale (bigger nodes) ─────────────────────────────────
@@ -148,9 +160,9 @@ function buildTree() {
     const baseWidth = 3.2;
     const activeWidth = 7.5;
     const baseOpacity = unlocked ? 0.8 : 0.25;
-
+    // Orthogonal (stepped) edges for schematic/diagram look
     const pathEl = svgEl("path", {
-      d: `M ${fx} ${fy} C ${fx} ${midY}, ${tx} ${midY}, ${tx} ${ty}`,
+      d: `M ${fx} ${fy} V ${midY} H ${tx} V ${ty}`,
       class: `edge-line ${unlocked ? "unlocked" : "locked"} ${branchClass(to.branch)}`,
       id: `edge-${edge.from}-${edge.to}`,
       "stroke-width": hasActivePath ? (onPath ? activeWidth : 1.6) : baseWidth,
@@ -197,51 +209,51 @@ function buildTree() {
     g.appendChild(glowOuter);
     g.appendChild(glowInner);
 
-    // ── Outer ring — thicker for hub & clusters, heaviest for careers
+    // ── Outer hex ring
     const outerRingWidth = isCareer ? 3.2 : (skill.tier === "root" ? 2.8 : 2.2);
-    const outerRingOpacity = hasActivePath
-      ? (onPath ? 0.9 : 0.18)
-      : 0.5;
-    const outerRing = svgEl("circle", {
-      r: r + 4,
+    const outerRingOpacity = hasActivePath ? (onPath ? 0.9 : 0.18) : 0.5;
+    const outerHex = svgEl("path", {
+      d: hexPath(r + 5),
       fill: "none",
       stroke: color,
       "stroke-width": outerRingWidth,
+      "stroke-linejoin": "round",
       opacity: outerRingOpacity,
       "pointer-events": "none",
     });
-    g.appendChild(outerRing);
+    g.appendChild(outerHex);
 
-    // ── Main circle
+    // ── Main hexagon
     const baseFill  = hasActivePath && onPath
-      ? `color-mix(in srgb, ${color} 32%, #060712)`
+      ? `color-mix(in srgb, ${color} 28%, #060712)`
       : isUnlocked ? "#141624" : "#060712";
     const strokeW   = isSelected ? 4.4 : (hasActivePath && onPath ? 3.6 : 2.6);
     const strokeOpacity = hasActivePath && onPath ? 1 : (isUnlocked ? 0.85 : 0.35);
-
-    const circle = svgEl("circle", {
-      r,
+    const mainHex = svgEl("path", {
+      d: hexPath(r),
       fill: baseFill,
       stroke: color,
       "stroke-width": strokeW,
+      "stroke-linejoin": "round",
       "stroke-opacity": strokeOpacity,
     });
-    g.appendChild(circle);
+    g.appendChild(mainHex);
 
-    // ── Inner radial highlight
+    // ── Inner highlight (circle for radial gradient)
     const highlight = svgEl("circle", {
-      r: r - 3, fill: "url(#node-core)", "pointer-events": "none",
+      r: r * 0.6, fill: "url(#node-core)", "pointer-events": "none",
     });
     g.appendChild(highlight);
 
-    // ── Selected ring
+    // ── Selected hex ring
     if (isSelected) {
-      const selRing = svgEl("circle", {
-        r: r + 6, fill: "none",
-        stroke: color, "stroke-width": 2.5, opacity: 0.6,
-        "pointer-events": "none",
+      const selHex = svgEl("path", {
+        d: hexPath(r + 8),
+        fill: "none",
+        stroke: color, "stroke-width": 2.5, "stroke-linejoin": "round",
+        opacity: 0.6, "pointer-events": "none",
       });
-      g.appendChild(selRing);
+      g.appendChild(selHex);
     }
 
     // ── Icon — large, centered, no labels
@@ -356,6 +368,17 @@ function showDetail(id) {
   // Type label
   const tierLabels = { root: "Starting Point · Everyone begins here", foundation: "Foundation Skill · Required for all pathways", branch: "Specialization · Choose your direction", advanced: "Advanced Competency · Unlocks career roles", career: "Career Destination · Your target role" };
   document.getElementById("panel-type-label").textContent = tierLabels[skill.tier] || "";
+
+  // CC2020 layer (Knowledge / Skills / Dispositions)
+  const layerLabels = { knowledge: "Layer: Knowledge", skills: "Layer: Skills", dispositions: "Layer: Dispositions" };
+  const layerEl = document.getElementById("panel-cc2020-layer");
+  if (skill.cc2020Layer && layerLabels[skill.cc2020Layer]) {
+    layerEl.textContent = layerLabels[skill.cc2020Layer];
+    layerEl.classList.remove("hidden");
+  } else {
+    layerEl.textContent = "";
+    layerEl.classList.add("hidden");
+  }
 
   // Description
   document.getElementById("panel-desc").textContent = skill.desc;

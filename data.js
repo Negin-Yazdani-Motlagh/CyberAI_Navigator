@@ -1,9 +1,7 @@
 // ─── Skill Tree Data ───────────────────────────────────────────────────────
-// Aligned with ACM/IEEE CC2020 (Sec. 5.2): Competency = Knowledge + Skills + Dispositions.
-// Shallow 3-layer structure: Foundation → Competency clusters → Career targets.
-// skillLevel: Bloom-style (Remember, Understand, Apply, Analyze, Evaluate, Create).
-// dispositions (softSkills): CC2020 disposition/characteristics.
-// competencies: short knowledge/skill bullets for reporting.
+// ACM/IEEE CC2020 Sec. 5.2: Completing a competency = Knowledge + Skills + Dispositions.
+// Map layers: KNOWLEDGE (bottom) → SKILLS (middle) → DISPOSITIONS · Career (top).
+// cc2020Layer: "knowledge" | "skills" | "dispositions" — which CC2020 layer this node belongs to.
 
 const SKILLS = [
 
@@ -28,10 +26,11 @@ const SKILLS = [
     careers: [],
     salary: null,
     xp: 0,
+    cc2020Layer: "knowledge",
   },
 
   // ══════════════════════════════════════════════════
-  //  4 COMPETENCY CLUSTERS
+  //  SKILLS LAYER (CC2020) — 4 competency clusters
   // ══════════════════════════════════════════════════
   {
     id: "foundations_cluster",
@@ -52,6 +51,7 @@ const SKILLS = [
     careers: ["Data Scientist", "Security Analyst", "Penetration Tester", "Threat Intel Engineer"],
     salary: null,
     xp: 80,
+    cc2020Layer: "skills",
   },
   {
     id: "comm_teamwork",
@@ -72,6 +72,7 @@ const SKILLS = [
     careers: ["AI Research Scientist", "Data Scientist", "ML Engineer"],
     salary: null,
     xp: 80,
+    cc2020Layer: "skills",
   },
   {
     id: "ethics_resp",
@@ -92,6 +93,7 @@ const SKILLS = [
     careers: ["AI Security Engineer", "Adversarial ML Engineer", "IoT Security Engineer", "Security Architect"],
     salary: null,
     xp: 80,
+    cc2020Layer: "skills",
   },
   {
     id: "leadership_innov",
@@ -112,10 +114,11 @@ const SKILLS = [
     careers: ["Security Architect", "Incident Response Engineer", "Resilient Autonomous Systems Engineer", "ML Engineer"],
     salary: null,
     xp: 80,
+    cc2020Layer: "skills",
   },
 
   // ══════════════════════════════════════════════════
-  //  CAREER ENDPOINTS — AI
+  //  DISPOSITIONS LAYER (CC2020) — Career readiness
   // ══════════════════════════════════════════════════
   {
     id: "data_sci",
@@ -137,6 +140,7 @@ const SKILLS = [
     careers: [],
     salary: "$105K – $165K / yr",
     xp: 200,
+    cc2020Layer: "dispositions",
   },
   {
     id: "ml_eng",
@@ -158,6 +162,7 @@ const SKILLS = [
     careers: [],
     salary: "$130K – $200K / yr",
     xp: 200,
+    cc2020Layer: "dispositions",
   },
   {
     id: "ai_researcher",
@@ -179,6 +184,7 @@ const SKILLS = [
     careers: [],
     salary: "$160K – $350K+ / yr",
     xp: 200,
+    cc2020Layer: "dispositions",
   },
 
   // ══════════════════════════════════════════════════
@@ -204,6 +210,7 @@ const SKILLS = [
     careers: [],
     salary: "$95K – $155K / yr",
     xp: 200,
+    cc2020Layer: "dispositions",
   },
   {
     id: "sec_arch",
@@ -225,6 +232,7 @@ const SKILLS = [
     careers: [],
     salary: "$140K – $220K / yr",
     xp: 200,
+    cc2020Layer: "dispositions",
   },
   {
     id: "ir_analyst",
@@ -246,6 +254,7 @@ const SKILLS = [
     careers: [],
     salary: "$90K – $150K / yr",
     xp: 200,
+    cc2020Layer: "dispositions",
   },
 
   // ══════════════════════════════════════════════════
@@ -271,6 +280,7 @@ const SKILLS = [
     careers: [],
     salary: "$150K – $230K / yr",
     xp: 250,
+    cc2020Layer: "dispositions",
   },
   {
     id: "threat_intel",
@@ -292,6 +302,7 @@ const SKILLS = [
     careers: [],
     salary: "$110K – $180K / yr",
     xp: 250,
+    cc2020Layer: "dispositions",
   },
 
   // ══════════════════════════════════════════════════
@@ -317,6 +328,7 @@ const SKILLS = [
     careers: [],
     salary: "$125K – $195K / yr",
     xp: 200,
+    cc2020Layer: "dispositions",
   },
 
   // ══════════════════════════════════════════════════
@@ -342,6 +354,7 @@ const SKILLS = [
     careers: [],
     salary: "$70K – $120K / yr",
     xp: 150,
+    cc2020Layer: "dispositions",
   },
 
   // ══════════════════════════════════════════════════
@@ -367,6 +380,7 @@ const SKILLS = [
     careers: [],
     salary: "$110K – $175K / yr",
     xp: 200,
+    cc2020Layer: "dispositions",
   },
   {
     id: "embedded_ml_eng",
@@ -388,6 +402,7 @@ const SKILLS = [
     careers: [],
     salary: "$105K – $165K / yr",
     xp: 200,
+    cc2020Layer: "dispositions",
   },
   {
     id: "robotics_eng",
@@ -409,6 +424,7 @@ const SKILLS = [
     careers: [],
     salary: "$115K – $185K / yr",
     xp: 200,
+    cc2020Layer: "dispositions",
   },
   {
     id: "iot_sec_eng",
@@ -430,6 +446,7 @@ const SKILLS = [
     careers: [],
     salary: "$100K – $160K / yr",
     xp: 200,
+    cc2020Layer: "dispositions",
   },
 
   // ══════════════════════════════════════════════════
@@ -455,6 +472,7 @@ const SKILLS = [
     careers: [],
     salary: "$140K – $220K / yr",
     xp: 250,
+    cc2020Layer: "dispositions",
   },
   {
     id: "resilient_auto_eng",
@@ -476,6 +494,7 @@ const SKILLS = [
     careers: [],
     salary: "$130K – $210K / yr",
     xp: 250,
+    cc2020Layer: "dispositions",
   },
 ];
 
