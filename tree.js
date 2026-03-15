@@ -99,18 +99,16 @@ function buildTree() {
   const CH = 1060;  // canvas height (900  + OY + bottom padding)
 
 
-  // ── Horizontal tier band labels ───────────────────────────────────────
+  // ── Horizontal tier band labels (3-layer competency framework) ────────
   const tierBands = [
-    { y: 760 + OY, label: "CORE MINDSET"          },
-    { y: 600 + OY, label: "FOUNDATIONAL SKILLS"   },
-    { y: 430 + OY, label: "SKILL DEVELOPMENT"     },
-    { y: 260 + OY, label: "ADVANCED CAPABILITIES" },
-    { y:  45 + OY, label: "CAREER READINESS"      },
+    { y: 590 + OY, label: "CORE FOUNDATION"      },
+    { y: 290 + OY, label: "COMPETENCY CLUSTERS"  },
+    { y:  30 + OY, label: "CAREER READINESS"     },
   ];
   for (const b of tierBands) {
     treeGroup.appendChild(svgEl("line", {
       x1: 0, y1: b.y, x2: CW, y2: b.y,
-      stroke: "rgba(255,255,255,0.05)", "stroke-width": 1,
+      stroke: "rgba(255,255,255,0.06)", "stroke-width": 1,
     }));
     const lbl = svgEl("text", {
       x: 14, y: b.y + 22,
