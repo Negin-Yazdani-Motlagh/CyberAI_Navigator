@@ -119,7 +119,14 @@ function buildTree() {
     lbl.textContent = b.label;
     treeGroup.appendChild(lbl);
   }
-
+  // Map framing: competency = knowledge + skills + dispositions (CC2020)
+  const mapFraming = svgEl("text", {
+    x: 14, y: CH - 18,
+    "font-size": 10, fill: "rgba(255,255,255,0.28)",
+    "letter-spacing": "1.5", "pointer-events": "none",
+  });
+  mapFraming.textContent = "Competency = Knowledge + Skills + Dispositions (CC2020)";
+  treeGroup.appendChild(mapFraming);
 
   // ── Node radius scale (bigger nodes) ─────────────────────────────────
   const RADIUS_BOOST = { root: 16, foundation: 12, branch: 10, advanced: 12, career: 14 };
