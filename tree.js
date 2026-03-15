@@ -138,12 +138,17 @@ function buildTree() {
     const fx = from.x + OX, fy = from.y + OY, tx = to.x + OX, ty = to.y + OY;
     const midY = (fy + ty) / 2;
 
+    const baseWidth = 3.2;
+    const activeWidth = 7.5;
+    const baseOpacity = unlocked ? 0.8 : 0.25;
+
     const pathEl = svgEl("path", {
       d: `M ${fx} ${fy} C ${fx} ${midY}, ${tx} ${midY}, ${tx} ${ty}`,
       class: `edge-line ${unlocked ? "unlocked" : "locked"} ${branchClass(to.branch)}`,
       id: `edge-${edge.from}-${edge.to}`,
-      "stroke-width": hasActivePath ? (onPath ? 7 : 1.5) : 3,
-      opacity: hasActivePath ? (onPath ? 1 : 0.06) : (unlocked ? 0.8 : 0.25),
+      "stroke-width": hasActivePath ? (onPath ? activeWidth : 1.6) : baseWidth,
+      opacity: hasActivePath ? (onPath ? 1 : 0.05) : baseOpacity,
+      "stroke-linejoin": "round",
     });
     treeGroup.appendChild(pathEl);
   }
@@ -169,34 +174,42 @@ function buildTree() {
       opacity: hasActivePath ? (onPath ? 1 : 0.12) : 1,
     });
 
-    // ── Broad ambient glow — path nodes only
-    if (onPath && hasActivePath) {
-      const glow1 = svgEl("circle", {
-        r: r + 22, fill: color, opacity: 0.08, "pointer-events": "none",
-      });
-      const glow2 = svgEl("circle", {
-        r: r + 12, fill: color, opacity: 0.14, "pointer-events": "none",
-      });
-      g.appendChild(glow1);
-      g.appendChild(glow2);
-    }
+    // ── Ambient glow — always present but stronger on path
+    const glowOuter = svgEl("circle", {
+      r: r + 22,
+      fill: color,
+      opacity: hasActivePath ? (onPath ? 0.18 : 0.04) : 0.08,
+      "pointer-events": "none",
+    });
+    const glowInner = svgEl("circle", {
+      r: r + 10,
+      fill: color,
+      opacity: hasActivePath ? (onPath ? 0.25 : 0.06) : 0.12,
+      "pointer-events": "none",
+    });
+    g.appendChild(glowOuter);
+    g.appendChild(glowInner);
 
-    // ── Outer pulsing ring — career nodes on path
-    if (isCareer) {
-      const outerRing = svgEl("circle", {
-        r: r + 10, fill: "none", stroke: color,
-        "stroke-width": (onPath && hasActivePath) ? 2.5 : 1,
-        opacity: (onPath && hasActivePath) ? 0.7 : (isUnlocked ? 0.18 : 0.06),
-        "stroke-dasharray": (onPath && hasActivePath) ? "none" : "3 4",
-      });
-      g.appendChild(outerRing);
-    }
+    // ── Outer ring — thicker for hub & clusters, heaviest for careers
+    const outerRingWidth = isCareer ? 3.2 : (skill.tier === "root" ? 2.8 : 2.2);
+    const outerRingOpacity = hasActivePath
+      ? (onPath ? 0.9 : 0.18)
+      : 0.5;
+    const outerRing = svgEl("circle", {
+      r: r + 4,
+      fill: "none",
+      stroke: color,
+      "stroke-width": outerRingWidth,
+      opacity: outerRingOpacity,
+      "pointer-events": "none",
+    });
+    g.appendChild(outerRing);
 
     // ── Main circle
     const baseFill  = hasActivePath && onPath
-      ? `color-mix(in srgb, ${color} 28%, #111520)`
-      : isUnlocked ? "#1a1d2c" : "#0d0e16";
-    const strokeW   = isSelected ? 4 : (hasActivePath && onPath ? 3.5 : 2);
+      ? `color-mix(in srgb, ${color} 32%, #060712)`
+      : isUnlocked ? "#141624" : "#060712";
+    const strokeW   = isSelected ? 4.4 : (hasActivePath && onPath ? 3.6 : 2.6);
     const strokeOpacity = hasActivePath && onPath ? 1 : (isUnlocked ? 0.85 : 0.35);
 
     const circle = svgEl("circle", {
