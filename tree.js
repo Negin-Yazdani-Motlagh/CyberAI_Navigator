@@ -290,6 +290,7 @@ function showCrosscutDetail(id) {
 
   document.getElementById("panel-tools-section").classList.add("hidden");
   document.getElementById("panel-prereqs-section").classList.add("hidden");
+  document.getElementById("panel-competencies-section").classList.add("hidden");
   document.getElementById("panel-learn-section").classList.add("hidden");
 
   const careersSec = document.getElementById("panel-careers-section");
@@ -326,7 +327,7 @@ function showDetail(id) {
   panelContent.classList.remove("hidden");
   // Restore section headings that crosscut detail may have overwritten
   document.querySelector("#panel-careers-section h4").textContent = "Opens Pathways To";
-  document.querySelector("#panel-soft-section h4").textContent = "Soft Skills";
+  document.querySelector("#panel-soft-section h4").textContent = "Disposition/Characteristics";
 
   const bc = branchClass(skill.branch);
   const isUnlocked = state.unlocked.has(id);
@@ -358,13 +359,24 @@ function showDetail(id) {
   // Prereqs — hidden
   document.getElementById("panel-prereqs-section").classList.add("hidden");
 
-  // Soft skills — shown first
+  // Disposition/Characteristics (CC2020)
+  const dispositions = skill.dispositions || skill.softSkills;
   const softSec = document.getElementById("panel-soft-section");
-  if (skill.softSkills && skill.softSkills.length) {
+  if (dispositions && dispositions.length) {
     softSec.classList.remove("hidden");
     document.getElementById("panel-soft").innerHTML =
-      `<div class="tag-group">${skill.softSkills.map(s => `<span class="tag soft-tag">${s}</span>`).join("")}</div>`;
+      `<div class="tag-group">${dispositions.map(s => `<span class="tag soft-tag">${s}</span>`).join("")}</div>`;
   } else { softSec.classList.add("hidden"); }
+
+  // Competencies (CC2020: knowledge + skill level)
+  const compSec = document.getElementById("panel-competencies-section");
+  const skillLevel = skill.skillLevel || "Apply";
+  const compBullets = skill.competencies && skill.competencies.length
+    ? skill.competencies
+    : [skill.desc ? skill.desc.split(".")[0].trim() + "." : "Apply knowledge and skills in context."];
+  compSec.classList.remove("hidden");
+  document.getElementById("panel-competencies").innerHTML =
+    `<p class="panel-skill-level"><strong>Skill level:</strong> ${skillLevel}</p><ul class="panel-comp-list">${compBullets.map(c => `<li>${c}</li>`).join("")}</ul>`;
 
   // Career outcomes (for non-career nodes)
   const careersSec = document.getElementById("panel-careers-section");
@@ -478,7 +490,7 @@ document.getElementById("reset-btn").addEventListener("click", () => {
   state.xp = 0;
   document.querySelectorAll(".cm-card").forEach(c => c.classList.remove("active-career"));
   document.querySelector("#panel-careers-section h4").textContent = "Opens Pathways To";
-  document.querySelector("#panel-soft-section h4").textContent = "Soft Skills";
+  document.querySelector("#panel-soft-section h4").textContent = "Disposition/Characteristics";
   panelEmpty.classList.remove("hidden");
   panelContent.classList.add("hidden");
   updateXPDisplay();

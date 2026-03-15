@@ -14,6 +14,7 @@
         <div>
           <h1>CYBERAI NAVIGATOR</h1>
           <p class="subtitle">Career Guidance Tool · AI &amp; Cybersecurity Pathways</p>
+          <p class="cc2020-attribution">Based on ACM/IEEE CC2020 (Sec. 5.2 — Competency-based visualization)</p>
         </div>
       </div>
       <div class="header-right">
@@ -28,7 +29,7 @@
         <div id="intro-banner">
           <div id="intro-banner-body">
             <span class="intro-banner-icon">💡</span>
-            <span><strong>How to use this map:</strong> Each node is a skill or career. Connected nodes show dependencies — you must build lower skills before reaching higher ones. Click any node or career card to explore its pathway, required skills, courses, and projects.</span>
+            <span><strong>How to use this map:</strong> Each node is a competency (knowledge + skills + dispositions). Click a node or career card to see its pathway, skill level, dispositions, and competencies.</span>
           </div>
           <button id="intro-dismiss" title="Dismiss">✕</button>
         </div>
@@ -77,8 +78,12 @@
           <p id="panel-type-label"></p>
           <p id="panel-desc"></p>
           <div id="panel-soft-section" class="panel-section hidden">
-            <h4>Soft Skills</h4>
+            <h4>Disposition/Characteristics</h4>
             <div id="panel-soft"></div>
+          </div>
+          <div id="panel-competencies-section" class="panel-section hidden">
+            <h4>Competencies</h4>
+            <div id="panel-competencies"></div>
           </div>
           <div id="panel-careers-section" class="panel-section hidden">
             <h4>Opens Pathways To</h4>

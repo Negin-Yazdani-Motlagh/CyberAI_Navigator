@@ -71,6 +71,7 @@ header h1 {
   color: var(--text-bright); text-transform: uppercase;
 }
 .subtitle { font-size: 11px; color: var(--text-dim); letter-spacing: 1px; margin-top: 2px; }
+.cc2020-attribution { font-size: 9px; color: var(--text-dim); opacity: 0.85; margin-top: 2px; letter-spacing: 0.5px; }
 .header-right { display: flex; align-items: center; gap: 10px; }
 .stat-pill {
   background: var(--surface2); border: 1px solid var(--border);
@@ -133,7 +134,7 @@ header h1 {
   transition: stroke-width .25s, opacity .25s;
 }
 .edge-line.locked   { stroke: var(--border); stroke-dasharray: 5 4; }
-.edge-line.unlocked { }
+.edge-line.unlocked { stroke: inherit; }
 .edge-line.ai       { stroke: var(--ai); }
 .edge-line.cyber    { stroke: var(--cyber); }
 .edge-line.hybrid   { stroke: var(--hybrid); }
@@ -199,6 +200,9 @@ header h1 {
   color: var(--text-dim); font-weight: 600;
 }
 .panel-section.hidden { display: none; }
+
+.panel-skill-level { font-size: 12px; color: var(--text); margin: 0 0 6px 0; }
+.panel-comp-list { margin: 0; padding-left: 18px; font-size: 12px; color: var(--text); line-height: 1.5; }
 
 .tag-group { display: flex; flex-wrap: wrap; gap: 6px; }
 .tag {

@@ -1,10 +1,9 @@
 // ─── Skill Tree Data ───────────────────────────────────────────────────────
-// Layout: x,y in a 1400×900 SVG canvas (origin top-left)
-// Structure: Shallow 3-layer competency framework
-//   Layer 1 (bottom): Lifelong Learning hub
-//   Layer 2 (middle): 4 competency clusters
-//   Layer 3 (top):    Career nodes
-// Branch: common | ai | cyber | hybrid
+// Aligned with ACM/IEEE CC2020 (Sec. 5.2): Competency = Knowledge + Skills + Dispositions.
+// Shallow 3-layer structure: Foundation → Competency clusters → Career targets.
+// skillLevel: Bloom-style (Remember, Understand, Apply, Analyze, Evaluate, Create).
+// dispositions (softSkills): CC2020 disposition/characteristics.
+// competencies: short knowledge/skill bullets for reporting.
 
 const SKILLS = [
 
@@ -20,6 +19,9 @@ const SKILLS = [
     x: 700, y: 720,
     radius: 52,
     desc: "The drive to continuously update your skills, embrace new tools, and adapt in a rapidly evolving field. In AI and cybersecurity, yesterday's best practice can become tomorrow's vulnerability — adaptability is not optional, it is the foundation of everything.",
+    skillLevel: "Understand",
+    competencies: ["Understand core computing and professional context", "Self-directed learning and reflection"],
+    dispositions: ["Adaptable", "Self-directed", "Responsible"],
     tools: [],
     learningSources: { courses: [], labs: [], projects: [] },
     prereqs: [],
@@ -40,8 +42,11 @@ const SKILLS = [
     x: 160, y: 450,
     radius: 42,
     desc: "Core transferable skills every professional needs regardless of specialization — thinking clearly, solving problems methodically, managing time under pressure, and reflecting honestly on your own practice.",
-    tools: [],
+    skillLevel: "Apply",
+    competencies: ["Apply analytical and critical thinking", "Problem solving and troubleshooting", "Time management and task organization"],
+    dispositions: ["Problem Solving", "Critical Thinking", "Self-Learning", "Time Management", "Reflective Practice"],
     softSkills: ["Problem Solving", "Critical Thinking", "Self-Learning", "Time Management", "Reflective Practice"],
+    tools: [],
     learningSources: { courses: [], labs: [], projects: [] },
     prereqs: ["root"],
     careers: ["Data Scientist", "Security Analyst", "Penetration Tester", "Threat Intel Engineer"],
@@ -57,8 +62,11 @@ const SKILLS = [
     x: 490, y: 430,
     radius: 42,
     desc: "Translating complex technical work across disciplines, listening actively, and collaborating effectively in cross-functional teams. No AI system or security posture is built alone — communication determines whether good work has real impact.",
-    tools: [],
+    skillLevel: "Apply",
+    competencies: ["Oral and written technical communication", "Collaboration and teamwork", "Active listening and conflict resolution"],
+    dispositions: ["Technical Communication", "Collaboration", "Active Listening", "Conflict Resolution"],
     softSkills: ["Technical Communication", "Collaboration", "Active Listening", "Conflict Resolution"],
+    tools: [],
     learningSources: { courses: [], labs: [], projects: [] },
     prereqs: ["root"],
     careers: ["AI Research Scientist", "Data Scientist", "ML Engineer"],
@@ -74,8 +82,11 @@ const SKILLS = [
     x: 910, y: 430,
     radius: 42,
     desc: "Applying moral judgment when designing AI systems or conducting security work — responsible disclosure, data privacy, algorithmic fairness, and understanding the broader societal impact of the systems you build and defend.",
-    tools: [],
+    skillLevel: "Evaluate",
+    competencies: ["Evaluate ethical and professional choices", "Understand security, privacy, and societal impact"],
+    dispositions: ["Ethical Decision Making", "Professional Ethics", "AI & Cybersecurity Ethics", "Social Impact Awareness"],
     softSkills: ["Ethical Decision Making", "Professional Ethics", "AI & Cybersecurity Ethics", "Social Impact Awareness"],
+    tools: [],
     learningSources: { courses: [], labs: [], projects: [] },
     prereqs: ["root"],
     careers: ["AI Security Engineer", "Adversarial ML Engineer", "IoT Security Engineer", "Security Architect"],
@@ -91,8 +102,11 @@ const SKILLS = [
     x: 1230, y: 450,
     radius: 42,
     desc: "Driving projects forward, inspiring teams, thinking creatively, and planning strategically. Leaders in AI and cybersecurity don't just solve today's problems — they anticipate tomorrow's challenges and bring others along for the journey.",
-    tools: [],
+    skillLevel: "Create",
+    competencies: ["Project and task organization", "Creative thinking and strategic planning", "Leadership and coordination"],
+    dispositions: ["Project Management", "Creative Thinking", "Leadership Skills", "Strategic Planning"],
     softSkills: ["Project Management", "Creative Thinking", "Leadership Skills", "Strategic Planning"],
+    tools: [],
     learningSources: { courses: [], labs: [], projects: [] },
     prereqs: ["root"],
     careers: ["Security Architect", "Incident Response Engineer", "Resilient Autonomous Systems Engineer", "ML Engineer"],
