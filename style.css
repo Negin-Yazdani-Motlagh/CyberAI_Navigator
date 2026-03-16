@@ -139,13 +139,8 @@ header h1 {
   stroke-linecap: round;
   transition: stroke-width .25s, opacity .25s;
 }
-.edge-line.locked   { stroke: var(--border); stroke-dasharray: 5 4; }
-.edge-line.unlocked { stroke: inherit; }
-.edge-line.ai       { stroke: var(--ai); }
-.edge-line.cyber    { stroke: var(--cyber); }
-.edge-line.hybrid   { stroke: var(--hybrid); }
-.edge-line.common   { stroke: var(--common); }
-.edge-line.edge     { stroke: var(--edge); }
+/* Edge stroke is set in JS to match node colors (knowledge/skills/disposition/career/expert). Do not override with branch colors. */
+.edge-line.locked   { stroke-dasharray: 5 4; }
 
 .tier-label {
   font-size: 10px; fill: var(--text-dim);
@@ -206,11 +201,61 @@ header h1 {
   color: var(--text-dim); font-weight: 600;
 }
 .panel-section.hidden { display: none; }
+.panel-zone.hidden { display: none; }
 
 .panel-cc2020-model { font-size: 10px; color: var(--text-dim); letter-spacing: 0.5px; margin: 8px 0 6px 0; }
 .panel-cc2020-layer { font-size: 11px; font-weight: 600; letter-spacing: 1px; color: var(--hybrid); margin: 0 0 12px 0; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
 .panel-cc2020-layer.hidden { display: none; }
+.panel-cc2020-model.hidden { display: none; }
+
+/* Three zones after description: Knowledge (blue), Skills (green), Dispositions (gold) */
+.panel-zone {
+  margin: 12px 0;
+  padding: 10px 12px 12px;
+  border-radius: 8px;
+  border-left: 4px solid;
+}
+.panel-zone-title {
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 8px;
+  padding: 0;
+}
+.panel-zone-content {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.panel-zone-content ul { margin: 0; padding-left: 18px; }
+.panel-zone-content .tag-group { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.panel-zone-knowledge {
+  border-left-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+}
+.panel-zone-knowledge .panel-zone-title { color: #3b82f6; }
+.panel-zone-skills {
+  border-left-color: #22c55e;
+  background: rgba(34, 197, 94, 0.08);
+}
+.panel-zone-skills .panel-zone-title { color: #22c55e; }
+.panel-zone-disposition {
+  border-left-color: #f5c842;
+  background: rgba(245, 200, 66, 0.08);
+}
+.panel-zone-disposition .panel-zone-title { color: #f5c842; }
+/* Disposition zone: gold to match map */
+.panel-zone-disposition .tag,
+.panel-zone-disposition .soft-tag {
+  border-color: rgba(245, 200, 66, 0.5);
+  color: #f5c842;
+  background: rgba(245, 200, 66, 0.08);
+}
+
 .panel-skill-level { font-size: 12px; color: var(--text); margin: 0 0 6px 0; }
+.panel-map-hint { font-size: 10px; color: var(--text-dim); margin: 8px 0 0 0; font-style: italic; }
+.panel-zone-lead { font-size: 11px; color: var(--text-dim); margin: 0 0 6px 0; font-weight: 600; }
 .panel-comp-list { margin: 0; padding-left: 18px; font-size: 12px; color: var(--text); line-height: 1.5; }
 
 .tag-group { display: flex; flex-wrap: wrap; gap: 6px; }

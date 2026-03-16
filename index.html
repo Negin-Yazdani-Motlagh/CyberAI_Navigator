@@ -29,7 +29,7 @@
         <div id="intro-banner">
           <div id="intro-banner-body">
             <span class="intro-banner-icon">💡</span>
-            <span><strong>How to use this map:</strong> The path shows the three CC2020 layers — <strong>Knowledge</strong> (bottom) → <strong>Skills</strong> (middle) → <strong>Dispositions</strong> (top). Completing a competency means building through these layers. Click a node or career to see its layer and pathway.</span>
+            <span><strong>How to use this map:</strong> <strong>Path-based career graph.</strong> Each career is one branch: Start → … → Expert. Edges only between adjacent nodes (no cross-connections). Pick a career to highlight its path (Data Science = blue, AI = purple, Cyber = green); other nodes dim.</span>
           </div>
           <button id="intro-dismiss" title="Dismiss">✕</button>
         </div>
@@ -60,6 +60,9 @@
               <stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/>
               <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
             </radialGradient>
+            <clipPath id="avatar-clip" clipPathUnits="objectBoundingBox">
+              <circle cx="0.5" cy="0.5" r="0.5"/>
+            </clipPath>
           </defs>
           <g id="tree-group"></g>
         </svg>
@@ -77,8 +80,22 @@
           <h2 id="panel-title"></h2>
           <p id="panel-type-label"></p>
           <p id="panel-desc"></p>
-          <p id="panel-cc2020-model" class="panel-cc2020-model">Completing a competency = Knowledge → Skills → Dispositions (CC2020 Sec. 5.2)</p>
-          <p id="panel-cc2020-layer" class="panel-cc2020-layer"></p>
+          <!-- Right after the job/competency description: only these 3 zones (Knowledge, Skills, Disposition) with required sub-skills -->
+          <!-- Knowledge, Skills, Disposition zones: shown only for career nodes -->
+          <div id="panel-zone-knowledge" class="panel-zone panel-zone-knowledge hidden">
+            <h4 id="panel-zone-knowledge-title" class="panel-zone-title">Knowledge</h4>
+            <div id="panel-zone-knowledge-content" class="panel-zone-content"></div>
+          </div>
+          <div id="panel-zone-skills" class="panel-zone panel-zone-skills hidden">
+            <h4 id="panel-zone-skills-title" class="panel-zone-title">Skills</h4>
+            <div id="panel-zone-skills-content" class="panel-zone-content"></div>
+          </div>
+          <div id="panel-zone-disposition" class="panel-zone panel-zone-disposition hidden">
+            <h4 id="panel-zone-disposition-title" class="panel-zone-title">Dispositions</h4>
+            <div id="panel-zone-disposition-content" class="panel-zone-content"></div>
+          </div>
+          <div id="panel-cc2020-model" class="panel-cc2020-model hidden">Completing a competency = Knowledge → Skills → Dispositions (CC2020 Sec. 5.2)</div>
+          <p id="panel-cc2020-layer" class="panel-cc2020-layer hidden"></p>
           <div id="panel-competencies-section" class="panel-section hidden">
             <h4>Competencies (Knowledge &amp; Skills)</h4>
             <div id="panel-competencies"></div>
@@ -116,7 +133,7 @@
           </div>
         </div>
 
-        <!-- AI Systems -->
+        <!-- AI Systems (2 careers) -->
         <div class="cm-section">
           <div class="cm-section-label ai">◈ AI Systems</div>
           <div class="cm-card" data-skill="ml_eng">
@@ -126,13 +143,6 @@
             </div>
             <div class="cm-lock-dot" id="cm-dot-ml_eng"></div>
           </div>
-          <div class="cm-card" data-skill="ai_researcher">
-            <div class="cm-avatar ai"><div class="cm-avatar-inner">🧬</div><div class="cm-avatar-ring ai"></div></div>
-            <div class="cm-card-info">
-              <span class="cm-name">AI Research<br>Scientist</span>
-            </div>
-            <div class="cm-lock-dot" id="cm-dot-ai_researcher"></div>
-          </div>
           <div class="cm-card" data-skill="data_sci">
             <div class="cm-avatar ai"><div class="cm-avatar-inner">📊</div><div class="cm-avatar-ring ai"></div></div>
             <div class="cm-card-info">
@@ -140,25 +150,11 @@
             </div>
             <div class="cm-lock-dot" id="cm-dot-data_sci"></div>
           </div>
-          <div class="cm-card" data-skill="applied_ai_eng">
-            <div class="cm-avatar ai"><div class="cm-avatar-inner">⚡</div><div class="cm-avatar-ring ai"></div></div>
-            <div class="cm-card-info">
-              <span class="cm-name">Applied AI<br>Engineer</span>
-            </div>
-            <div class="cm-lock-dot" id="cm-dot-applied_ai_eng"></div>
-          </div>
         </div>
 
-        <!-- Cybersecurity -->
+        <!-- Cybersecurity (2 careers) -->
         <div class="cm-section">
           <div class="cm-section-label cyber">◈ Cybersecurity</div>
-          <div class="cm-card" data-skill="sec_analyst">
-            <div class="cm-avatar cyber"><div class="cm-avatar-inner">🔎</div><div class="cm-avatar-ring cyber"></div></div>
-            <div class="cm-card-info">
-              <span class="cm-name">Security<br>Analyst</span>
-            </div>
-            <div class="cm-lock-dot" id="cm-dot-sec_analyst"></div>
-          </div>
           <div class="cm-card" data-skill="pen_tester">
             <div class="cm-avatar cyber"><div class="cm-avatar-inner">🎯</div><div class="cm-avatar-ring cyber"></div></div>
             <div class="cm-card-info">
@@ -173,16 +169,9 @@
             </div>
             <div class="cm-lock-dot" id="cm-dot-sec_arch"></div>
           </div>
-          <div class="cm-card" data-skill="ir_analyst">
-            <div class="cm-avatar cyber"><div class="cm-avatar-inner">🚨</div><div class="cm-avatar-ring cyber"></div></div>
-            <div class="cm-card-info">
-              <span class="cm-name">Incident Response<br>Engineer</span>
-            </div>
-            <div class="cm-lock-dot" id="cm-dot-ir_analyst"></div>
-          </div>
         </div>
 
-        <!-- Edge / Embedded AI -->
+        <!-- Edge / Embedded AI (2 careers) -->
         <div class="cm-section">
           <div class="cm-section-label edge">◈ Edge / Embedded AI</div>
           <div class="cm-card" data-skill="edge_ai_eng">
@@ -199,23 +188,9 @@
             </div>
             <div class="cm-lock-dot" id="cm-dot-embedded_ml_eng"></div>
           </div>
-          <div class="cm-card" data-skill="robotics_eng">
-            <div class="cm-avatar edge"><div class="cm-avatar-inner">🦾</div><div class="cm-avatar-ring edge"></div></div>
-            <div class="cm-card-info">
-              <span class="cm-name">Robotics / Autonomous<br>Systems Engineer</span>
-            </div>
-            <div class="cm-lock-dot" id="cm-dot-robotics_eng"></div>
-          </div>
-          <div class="cm-card" data-skill="iot_sec_eng">
-            <div class="cm-avatar edge"><div class="cm-avatar-inner">🌐</div><div class="cm-avatar-ring edge"></div></div>
-            <div class="cm-card-info">
-              <span class="cm-name">IoT Security<br>Engineer</span>
-            </div>
-            <div class="cm-lock-dot" id="cm-dot-iot_sec_eng"></div>
-          </div>
         </div>
 
-        <!-- AI + Cyber Hybrid -->
+        <!-- AI + Cyber Hybrid (2 careers) -->
         <div class="cm-section hybrid-section">
           <div class="cm-section-label hybrid">⬡ AI + Cyber Hybrid</div>
           <div class="cm-card" data-skill="ai_sec_eng">
@@ -225,26 +200,12 @@
             </div>
             <div class="cm-lock-dot" id="cm-dot-ai_sec_eng"></div>
           </div>
-          <div class="cm-card" data-skill="adv_ml_eng">
-            <div class="cm-avatar hybrid"><div class="cm-avatar-inner">⚔</div><div class="cm-avatar-ring hybrid"></div></div>
-            <div class="cm-card-info">
-              <span class="cm-name">Adversarial ML<br>Engineer</span>
-            </div>
-            <div class="cm-lock-dot" id="cm-dot-adv_ml_eng"></div>
-          </div>
           <div class="cm-card" data-skill="threat_intel">
             <div class="cm-avatar hybrid"><div class="cm-avatar-inner">🔍</div><div class="cm-avatar-ring hybrid"></div></div>
             <div class="cm-card-info">
               <span class="cm-name">Threat Intel Engineer<br>(AI-driven)</span>
             </div>
             <div class="cm-lock-dot" id="cm-dot-threat_intel"></div>
-          </div>
-          <div class="cm-card" data-skill="resilient_auto_eng">
-            <div class="cm-avatar hybrid"><div class="cm-avatar-inner">🛡</div><div class="cm-avatar-ring hybrid"></div></div>
-            <div class="cm-card-info">
-              <span class="cm-name">Resilient Autonomous<br>Systems Engineer</span>
-            </div>
-            <div class="cm-lock-dot" id="cm-dot-resilient_auto_eng"></div>
           </div>
         </div>
       </aside>

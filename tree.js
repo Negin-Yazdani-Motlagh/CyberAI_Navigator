@@ -8,23 +8,23 @@ const panelContent = document.getElementById("panel-content");
 
 // ── State ──────────────────────────────────────────────────────────────────
 const state = {
-  unlocked: new Set(["root"]),
+  unlocked: new Set(),
   selected: null,
-  activePath: new Set(),
+  activePath: new Set(), // nodes on active career path
+  activeEdges: new Set(), // edges on active career path ("from->to")
   xp: 0,
   transform: { x: 0, y: 0, scale: 1 },
 };
 
-// ── Path helper ───────────────────────────────────────────────────────────
+// ── Path helper: one linear path per career (from CAREER_PATHS) ───────────
 function getCareerPath(id) {
+  if (typeof CAREER_PATHS !== "undefined" && CAREER_PATHS[id])
+    return new Set(CAREER_PATHS[id]);
   const path = new Set();
-  function traverse(nodeId) {
-    if (path.has(nodeId)) return;
-    path.add(nodeId);
-    const skill = SKILL_MAP[nodeId];
-    if (skill) skill.prereqs.forEach(p => traverse(p));
-  }
-  traverse(id);
+  const skill = SKILL_MAP[id];
+  if (skill && skill.prereqs && skill.prereqs.length)
+    skill.prereqs.forEach(p => path.add(p));
+  path.add(id);
   return path;
 }
 
@@ -97,99 +97,125 @@ function hexPath(R) {
 function diamondPath(R) {
   return `M 0,${-R} L ${R},0 L 0,${R} L ${-R},0 Z`;
 }
-// CC2020 layer colors (reference style: Knowledge=gold, Skills=blue, Dispositions=purple)
+// K = Blue, S = Green, D = Silver (distinct from Expert gold)
 function layerColor(layer) {
-  if (layer === "knowledge") return "#f5c842";   // gold — foundations
-  if (layer === "skills") return "#3b8bff";      // blue — skills
-  if (layer === "dispositions") return "#c86bff"; // purple — career readiness
+  if (layer === "knowledge") return "#3b82f6";   // blue
+  if (layer === "skills") return "#22c55e";       // green
+  if (layer === "dispositions") return "#e5e7eb"; // silver
   return null;
 }
+const START_COLOR = "#6366f1";  // indigo for Start
+const EXPERT_COLOR = "#f5c842"; // gold for Expert (distinct from dispositions)
+const CAREER_NODE_COLOR = "#000000";
+// Foundation badge colors (Programming=blue, Math=purple, Systems=green)
+// Node color: Career, Expert, then by layer (K=blue, S=green, D=gold)
+function getNodeColor(skill) {
+  if (!skill) return null;
+  if (skill.id === "expert") return EXPERT_COLOR;
+  if (skill.tier === "career" || skill.nodeType === "career") return CAREER_NODE_COLOR;
+  const layer = skill.cc2020Layer || (skill.nodeType === "knowledge" ? "knowledge" : skill.nodeType === "skill" ? "skills" : skill.nodeType === "disposition" ? "dispositions" : "skills");
+  return layerColor(layer) || "#22c55e";
+}
+// Edge color by TARGET band: to Knowledge=blue, to Skills=green, to Dispositions=silver, to Expert=gold
+function getEdgeColorFrom(from, to) {
+  if (to && to.id === "expert") return EXPERT_COLOR;
+  if (!to) return null;
+  const layer = to.cc2020Layer || (to.nodeType === "knowledge" ? "knowledge" : to.nodeType === "skill" ? "skills" : to.nodeType === "disposition" ? "dispositions" : null);
+  return layerColor(layer) || "#22c55e";
+}
 // When a career is selected, its path uses this job’s branch color (each job = its own path color)
+const CAREER_PATH_COLORS = {
+  data_sci: "#3b82f6", ai_researcher: "#a855f7", ml_eng: "#a855f7", applied_ai_eng: "#a855f7", adv_ml_eng: "#a855f7",
+  pen_tester: "#22c55e", sec_arch: "#22c55e", ir_analyst: "#22c55e", sec_analyst: "#22c55e", iot_sec_eng: "#22c55e",
+  ai_sec_eng: "#a855f7", threat_intel: "#22c55e", edge_ai_eng: "#a855f7", embedded_ml_eng: "#a855f7", robotics_eng: "#a855f7", resilient_auto_eng: "#a855f7",
+};
 function getPathColor() {
   const id = state.selected;
-  if (!id) return null;
-  const skill = SKILL_MAP[id];
-  if (skill && skill.tier === "career") return branchColor(skill.branch);
-  return null;
+  return (id && CAREER_PATH_COLORS[id]) ? CAREER_PATH_COLORS[id] : null;
 }
 
 // ── Build tree ────────────────────────────────────────────────────────────
 function buildTree() {
   treeGroup.innerHTML = "";
 
-  // ── Canvas offsets — shift all nodes down/right to free space for labels
-  const OX = 100;   // horizontal padding each side
-  const OY = 80;    // vertical padding at top for zone labels
-  const CW = 1600;  // canvas width  (1400 + 2×OX)
-  const CH = 1060;  // canvas height (900  + OY + bottom padding)
+  // ── Canvas: layered roadmap (Start → K → S → D → Expert)
+  const OX = 60;
+  const OY = 50;
+  const CW = 2200;
+  const CH = 1700;
 
-
-  // ── CC2020 three layers: Knowledge (gold) → Skills (blue) → Dispositions (purple) ───
-  const t1 = 30 + OY, t2 = 290 + OY, t3 = 590 + OY;
-  const bandRects = [
-    { y: 0, h: t1 + 30, fill: "rgba(200,107,255,0.08)", label: "DISPOSITIONS · Career Readiness", labelY: t1 - 8 },
-    { y: t1 + 30, h: t2 - (t1 + 30), fill: "rgba(59,139,255,0.07)", label: "SKILLS", labelY: (t1 + 30 + t2) / 2 - 8 },
-    { y: t2, h: CH - t2, fill: "rgba(245,200,66,0.06)", label: "KNOWLEDGE", labelY: (t2 + t3) / 2 - 8 },
-  ];
-  const pathColor = getPathColor(); // job-specific path color when a career is selected
-  for (const b of bandRects) {
-    treeGroup.appendChild(svgEl("rect", {
-      x: 0, y: b.y, width: CW, height: b.h,
-      fill: b.fill, "pointer-events": "none",
-    }));
-    treeGroup.appendChild(svgEl("line", {
-      x1: 0, y1: b.y + b.h, x2: CW, y2: b.y + b.h,
-      stroke: "rgba(255,255,255,0.08)", "stroke-width": 1,
-      "pointer-events": "none",
-    }));
-    const lbl = svgEl("text", {
-      x: 20, y: b.labelY,
-      "font-size": 12, fill: "rgba(255,255,255,0.45)",
-      "letter-spacing": "2.5", "font-weight": "700",
-      "pointer-events": "none",
-    });
-    lbl.textContent = b.label;
-    treeGroup.appendChild(lbl);
-  }
-  // Legend: Knowledge / Skills / Dispositions each have their own color
-  const legendY = CH - 42;
+  const pathColor = getPathColor();
+  const legendY = CH - 38;
   const leg = (x, label, col) => {
     const g = svgEl("g", { "pointer-events": "none" });
     g.appendChild(svgEl("circle", { cx: x, cy: legendY - 6, r: 6, fill: "none", stroke: col, "stroke-width": 2 }));
-    const t = svgEl("text", { x: x + 14, y: legendY - 6, "font-size": 10, fill: "rgba(255,255,255,0.7)", "dominant-baseline": "middle" });
+    const t = svgEl("text", { x: x + 14, y: legendY - 6, "font-size": 10, fill: "rgba(255,255,255,0.8)", "dominant-baseline": "middle" });
     t.textContent = label;
     g.appendChild(t);
     return g;
   };
-  treeGroup.appendChild(leg(14, "Knowledge", "#f5c842"));
-  treeGroup.appendChild(leg(120, "Skills", "#3b8bff"));
-  treeGroup.appendChild(leg(200, "Dispositions", "#c86bff"));
-  if (pathColor && state.selected) {
-    const sel = SKILL_MAP[state.selected];
-    const jobLabel = sel ? sel.label.replace(/\n/g, " ") : "Career";
+  treeGroup.appendChild(leg(14, "Knowledge", "#3b82f6"));
+  treeGroup.appendChild(leg(95, "Skill", "#22c55e"));
+  treeGroup.appendChild(leg(145, "Disposition", "#e5e7eb"));
+  treeGroup.appendChild(leg(235, "Career (bottom)", CAREER_NODE_COLOR));
+  treeGroup.appendChild(leg(315, "Expert", EXPERT_COLOR));
+  if (state.selected && typeof CAREER_PATHS !== "undefined" && CAREER_PATHS[state.selected]) {
+    const jobLabel = (CAREER_META && CAREER_META[state.selected]) ? CAREER_META[state.selected].label : state.selected;
     const pathLeg = svgEl("text", {
-      x: 320, y: legendY - 6,
-      "font-size": 10, fill: "rgba(255,255,255,0.85)", "dominant-baseline": "middle",
+      x: 350, y: legendY - 6,
+      "font-size": 10, fill: "rgba(255,255,255,0.9)", "dominant-baseline": "middle",
       "font-weight": "700", "pointer-events": "none",
     });
-    pathLeg.textContent = `Your path → ${jobLabel}`;
-    pathLeg.setAttribute("fill", pathColor);
+    pathLeg.textContent = `Path: ${jobLabel}`;
     treeGroup.appendChild(pathLeg);
   }
-  const mapFraming = svgEl("text", {
+  const mapFlow = svgEl("text", {
     x: 14, y: CH - 18,
-    "font-size": 10, fill: "rgba(255,255,255,0.35)",
-    "letter-spacing": "1.5", "pointer-events": "none",
+    "font-size": 10, fill: "rgba(255,255,255,0.5)",
+    "letter-spacing": "1", "pointer-events": "none",
   });
-  mapFraming.textContent = "Completing a competency = Knowledge → Skills → Dispositions (CC2020 Sec. 5.2)";
-  treeGroup.appendChild(mapFraming);
+  mapFlow.textContent = "Bottom: one node per job. Path: Career → Foundation → … → Expert (top). Dispositions grouped. CC2020.";
+  treeGroup.appendChild(mapFlow);
 
-  // ── Node radius scale (bigger nodes) ─────────────────────────────────
-  const RADIUS_BOOST = { root: 16, foundation: 12, branch: 10, advanced: 12, career: 14 };
-  const ICON_SIZE    = { root: 42, foundation: 32, branch: 30, advanced: 34, career: 44 };
+  // Expert halo (optional)
+  const expertSkill = SKILL_MAP.expert;
+  if (expertSkill && !expertSkill.panelOnly) {
+    const ex = expertSkill.x + OX, ey = expertSkill.y + OY;
+    const haloG = svgEl("g", { "pointer-events": "none" });
+    const haloR = (expertSkill.radius || 32) + 60;
+    haloG.appendChild(svgEl("circle", { cx: ex, cy: ey, r: haloR, fill: "none", stroke: EXPERT_COLOR, "stroke-width": 4, opacity: 0.35 }));
+    treeGroup.appendChild(haloG);
+  }
+
+  // ── Node radius and icon scale (bigger, clearer icons) ─────────────────
+  const RADIUS_BOOST = { root: 18, foundation: 12, branch: 10, advanced: 12, career: 14, expert: 16 };
+  const ICON_SIZE    = { root: 56, foundation: 44, branch: 40, advanced: 46, career: 52, expert: 50 };
+
+  const renderRadius = (sk) => {
+    if (!sk) return 28;
+    const boost = RADIUS_BOOST[sk.tier] || 0;
+    // Slightly UNDER-shoot the visible ring so the edge tucks under it,
+    // avoiding visible "gaps" (cut-offs) at thick stroke widths.
+    return Math.max(8, (sk.radius || 28) + boost - 4);
+  };
+
+  // ── Active career path (adjacent edges only) ──────────────────────────
+  const selectedPathRaw = (state.selected && typeof CAREER_PATHS !== "undefined" && CAREER_PATHS[state.selected])
+    ? CAREER_PATHS[state.selected]
+    : null;
+  const selectedPath = (selectedPathRaw && Array.isArray(selectedPathRaw))
+    ? (selectedPathRaw[selectedPathRaw.length - 1] === "expert" ? selectedPathRaw : [...selectedPathRaw, "expert"])
+    : null;
+  const edgeOnSelectedPath = (fromId, toId) => {
+    if (!selectedPath) return false;
+    for (let i = 0; i < selectedPath.length - 1; i++) {
+      if (selectedPath[i] === fromId && selectedPath[i + 1] === toId) return true;
+    }
+    return false;
+  };
 
   // ── Edges (skip panel-only nodes) ─────────────────────────────────────
-  const hasActivePath = state.activePath.size > 0;
+  const hasActivePath = !!selectedPath;
   for (const edge of EDGES) {
     const from = SKILL_MAP[edge.from];
     const to   = SKILL_MAP[edge.to];
@@ -197,43 +223,91 @@ function buildTree() {
     if (from.panelOnly || to.panelOnly) continue;
 
     const unlocked   = state.unlocked.has(edge.from) && state.unlocked.has(edge.to);
-    const onPath     = !hasActivePath || (state.activePath.has(edge.from) && state.activePath.has(edge.to));
-    const fx = from.x + OX, fy = from.y + OY, tx = to.x + OX, ty = to.y + OY;
-    const midY = (fy + ty) / 2;
+    const onPath     = !hasActivePath || edgeOnSelectedPath(edge.from, edge.to);
+    const toExpert   = to.id === "expert";
+    const psToExpert = edge.from === "problem_solving" && edge.to === "expert";
+    // Base coordinates from node centres
+    const fx0 = from.x + OX, fy0 = from.y + OY, tx0 = to.x + OX, ty0 = to.y + OY;
+    let fx, fy, tx, ty;
+    let pathD;
+    if (psToExpert) {
+      // Special case: draw a bold, straight centre‑to‑centre line for
+      // Problem Solving → Expert so it is absolutely obvious.
+      fx = fx0; fy = fy0; tx = tx0; ty = ty0;
+      pathD = `M ${fx} ${fy} L ${tx} ${ty}`;
+    } else {
+      // Draw edges from boundary-to-boundary to avoid "cut off" look behind nodes.
+      const dx0 = tx0 - fx0, dy0 = ty0 - fy0;
+      const dist = Math.max(1, Math.hypot(dx0, dy0));
+      const ux = dx0 / dist, uy = dy0 / dist;
+      // Clamp trim so edges don't collapse when nodes are close.
+      const rf0 = renderRadius(from);
+      const rt0 = renderRadius(to);
+      const maxTrim = Math.max(0, dist / 2 - 2);
+      const rf = Math.min(rf0, maxTrim);
+      const rt = Math.min(rt0, maxTrim);
+      fx = fx0 + ux * rf;
+      fy = fy0 + uy * rf;
+      tx = tx0 - ux * rt;
+      ty = ty0 - uy * rt;
+      // For the active highlighted path, draw straight segments so connections never look "broken".
+      // For non-active edges, keep a gentle curve.
+      const dx = tx - fx, dy = ty - fy;
+      const curve = Math.min(80, Math.abs(dx) * 0.3);
+      const c1x = fx + curve, c1y = fy;
+      const c2x = tx - curve, c2y = ty;
+      pathD = (hasActivePath && onPath)
+        ? `M ${fx} ${fy} L ${tx} ${ty}`
+        : `M ${fx} ${fy} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${tx} ${ty}`;
+    }
 
-    const baseWidth = 3.2;
-    const activeWidth = 8;
-    const baseOpacity = unlocked ? 0.8 : 0.25;
-    // When a career is selected, path edges use that job’s color (each job = its own path)
-    const edgeStroke = (onPath && pathColor) ? pathColor : null;
-    const pathEl = svgEl("path", {
-      d: `M ${fx} ${fy} V ${midY} H ${tx} V ${ty}`,
-      class: `edge-line ${unlocked ? "unlocked" : "locked"} ${branchClass(to.branch)}`,
+    const baseWidth = 3;
+    const activeWidth = 10;
+    const toExpertWidth = 10;
+    const baseOpacity = unlocked ? 0.9 : 0.35;
+    // Edge colour always follows the TARGET band (Knowledge/Skills/Dispositions/Expert),
+    // even when a career is selected; highlight is conveyed via width + glow.
+    const edgeStroke = psToExpert ? EXPERT_COLOR : getEdgeColorFrom(from, to);
+    const strokeW = psToExpert
+      ? 18
+      : (hasActivePath ? (onPath ? (toExpert ? toExpertWidth : activeWidth) : 1.2) : (toExpert ? 2.5 : baseWidth));
+    const edgeOpacity = psToExpert
+      ? 1
+      : (hasActivePath ? (onPath ? 1 : 0.05) : (toExpert ? 0.2 : baseOpacity));
+    const pathAttrs = {
+      d: pathD,
+      class: `edge-line ${unlocked ? "unlocked" : "locked"} ${toExpert ? "edge-to-expert" : ""} ${onPath && hasActivePath ? "path-active" : ""}`,
       id: `edge-${edge.from}-${edge.to}`,
-      "stroke-width": hasActivePath ? (onPath ? activeWidth : 1.6) : baseWidth,
-      opacity: hasActivePath ? (onPath ? 1 : 0.05) : baseOpacity,
+      fill: "none",
+      stroke: edgeStroke || undefined,
+      "stroke-width": strokeW,
+      opacity: edgeOpacity,
+      "stroke-linecap": "round",
       "stroke-linejoin": "round",
-    });
-    if (edgeStroke) pathEl.setAttribute("stroke", edgeStroke);
+    };
+    if (psToExpert) pathAttrs.filter = "url(#glow-gold)";
+    else if (hasActivePath && onPath) pathAttrs.filter = "url(#glow-gold)";
+    else if (toExpert) pathAttrs.filter = "url(#glow-gold)";
+    const pathEl = svgEl("path", pathAttrs);
     treeGroup.appendChild(pathEl);
   }
 
-  // ── Nodes: shape and color by CC2020 layer (Knowledge=circle, Skills=hex, Dispositions=diamond)
+  // ── Nodes: all circles; Lifelong Learning (root) has its own color, then Knowledge/Skills/Dispositions each distinct
   const layerBadge = { knowledge: "K", skills: "S", dispositions: "D" };
   for (const skill of SKILLS) {
     if (skill.panelOnly) continue;
 
     const isUnlocked = state.unlocked.has(skill.id);
     const isSelected = state.selected === skill.id;
-    const onPath     = !hasActivePath || state.activePath.has(skill.id);
+    const onPath     = !hasActivePath || (selectedPath && selectedPath.includes(skill.id));
+    const isCareer   = skill.tier === "career";
     const layer      = skill.cc2020Layer || "skills";
-    const layerCol   = layerColor(layer) || branchColor(skill.branch);
-    // When a career is selected, path nodes use that job’s color (each job = its own path)
-    const color      = (onPath && pathColor) ? pathColor : layerCol;
+    const pathColor  = getPathColor();
+    // Only career nodes adopt the selected career colour; Knowledge/Skills/Dispositions keep their band colours.
+    const color      = (hasActivePath && onPath && pathColor && isCareer) ? pathColor : getNodeColor(skill);
     const boost     = RADIUS_BOOST[skill.tier] || 0;
     const r         = skill.radius + boost;
     const iconSize  = ICON_SIZE[skill.tier] || 20;
-    const isCareer   = skill.tier === "career";
 
     const g = svgEl("g", {
       id: `node-${skill.id}`,
@@ -242,35 +316,30 @@ function buildTree() {
       opacity: hasActivePath ? (onPath ? 1 : 0.12) : 1,
     });
 
-    // Glow — layer color
+    const isExpert = skill.id === "expert";
     const glowOuter = svgEl("circle", {
-      r: r + 22,
-      fill: color,
-      opacity: hasActivePath ? (onPath ? 0.18 : 0.04) : 0.08,
-      "pointer-events": "none",
-    });
-    const glowInner = svgEl("circle", {
-      r: r + 10,
-      fill: color,
-      opacity: hasActivePath ? (onPath ? 0.25 : 0.06) : 0.12,
-      "pointer-events": "none",
-    });
-    g.appendChild(glowOuter);
-    g.appendChild(glowInner);
+        r: r + 22,
+        fill: color,
+        opacity: hasActivePath ? (onPath ? 0.18 : 0.04) : 0.08,
+        "pointer-events": "none",
+      });
+      const glowInner = svgEl("circle", {
+        r: r + 10,
+        fill: color,
+        opacity: hasActivePath ? (onPath ? 0.25 : 0.06) : 0.12,
+        "pointer-events": "none",
+      });
+      g.appendChild(glowOuter);
+      g.appendChild(glowInner);
 
-    const outerRingWidth = isCareer ? 3.2 : (skill.tier === "root" ? 2.8 : 2.2);
-    const outerRingOpacity = hasActivePath ? (onPath ? 0.9 : 0.18) : 0.5;
-    const baseFill = hasActivePath && onPath
-      ? `color-mix(in srgb, ${color} 28%, #060712)`
-      : isUnlocked ? "#141624" : "#060712";
-    const strokeW = isSelected ? 4.4 : (hasActivePath && onPath ? 3.6 : 2.6);
-    const strokeOpacity = hasActivePath && onPath ? 1 : (isUnlocked ? 0.85 : 0.35);
+      const outerRingWidth = isCareer ? 3.2 : (isExpert ? 3.2 : 2.2);
+      const outerRingOpacity = hasActivePath ? (onPath ? 0.9 : 0.18) : 0.5;
+      const baseFill = hasActivePath && onPath
+        ? `color-mix(in srgb, ${color} 28%, #060712)`
+        : isUnlocked ? "#141624" : "#060712";
+      const strokeW = isSelected ? 4.4 : (hasActivePath && onPath ? 3.6 : 2.6);
+      const strokeOpacity = hasActivePath && onPath ? 1 : (isUnlocked ? 0.85 : 0.35);
 
-    // Shape by layer: Knowledge = circle, Skills = hex, Dispositions = diamond
-    const mainPathD = layer === "knowledge" ? null : (layer === "dispositions" ? diamondPath(r) : hexPath(r));
-    const outerPathD = layer === "knowledge" ? null : (layer === "dispositions" ? diamondPath(r + 5) : hexPath(r + 5));
-
-    if (layer === "knowledge") {
       const outerRing = svgEl("circle", {
         r: r + 5, fill: "none", stroke: color,
         "stroke-width": outerRingWidth, opacity: outerRingOpacity,
@@ -282,62 +351,77 @@ function buildTree() {
         "stroke-width": strokeW, "stroke-opacity": strokeOpacity,
       });
       g.appendChild(mainCircle);
-    } else {
-      const outerRing = svgEl("path", {
-        d: outerPathD, fill: "none", stroke: color,
-        "stroke-width": outerRingWidth, "stroke-linejoin": "round",
-        opacity: outerRingOpacity, "pointer-events": "none",
-      });
-      g.appendChild(outerRing);
-      const mainShape = svgEl("path", {
-        d: mainPathD, fill: baseFill, stroke: color,
-        "stroke-width": strokeW, "stroke-linejoin": "round",
-        "stroke-opacity": strokeOpacity,
-      });
-      g.appendChild(mainShape);
-    }
 
-    const highlight = svgEl("circle", {
-      r: r * 0.6, fill: "url(#node-core)", "pointer-events": "none",
-    });
-    g.appendChild(highlight);
+      const highlight = svgEl("circle", {
+        r: r * 0.6, fill: "url(#node-core)", "pointer-events": "none",
+      });
+      g.appendChild(highlight);
 
-    if (isSelected) {
-      const selR = r + 8;
-      if (layer === "knowledge") {
+      if (isSelected) {
+        const selR = r + 8;
         const selRing = svgEl("circle", { r: selR, fill: "none", stroke: color, "stroke-width": 2.5, opacity: 0.6, "pointer-events": "none" });
         g.appendChild(selRing);
+      }
+
+      const iconBrightness = hasActivePath && onPath ? 1 : (isUnlocked ? 0.85 : 0.4);
+      if (isExpert) {
+        const iconEl = svgEl("text", { y: 1, "font-size": iconSize, "text-anchor": "middle", "dominant-baseline": "central", "font-weight": "bold", opacity: iconBrightness, "pointer-events": "none" });
+        iconEl.textContent = skill.icon;
+        g.appendChild(iconEl);
+      } else if (isCareer) {
+        const avatarSize = r * 1.6;
+        const avatarUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(skill.id)}`;
+        const img = svgEl("image", {
+          href: avatarUrl,
+          x: -avatarSize / 2,
+          y: -avatarSize / 2,
+          width: avatarSize,
+          height: avatarSize,
+          opacity: iconBrightness,
+          "pointer-events": "none",
+          "clip-path": "url(#avatar-clip)",
+        });
+        g.appendChild(img);
       } else {
-        const selPathD = layer === "dispositions" ? diamondPath(selR) : hexPath(selR);
-        const selRing = svgEl("path", { d: selPathD, fill: "none", stroke: color, "stroke-width": 2.5, "stroke-linejoin": "round", opacity: 0.6, "pointer-events": "none" });
-        g.appendChild(selRing);
+        const iconEl = svgEl("text", {
+          y: 1, "font-size": iconSize,
+          "text-anchor": "middle", "dominant-baseline": "central",
+          "font-weight": "bold",
+          opacity: iconBrightness, "pointer-events": "none",
+        });
+        iconEl.textContent = skill.icon;
+        g.appendChild(iconEl);
+      }
+
+    // K / S / D badge on competency nodes (not Expert or career)
+    if (!isCareer && skill.id !== "expert") {
+      const badge = layerBadge[layer];
+      if (badge) {
+        const badgeEl = svgEl("text", {
+          y: r + 18, "font-size": 11, "font-weight": "700",
+          fill: color, "text-anchor": "middle", "dominant-baseline": "central",
+          opacity: hasActivePath && onPath ? 1 : 0.7, "pointer-events": "none",
+        });
+        badgeEl.textContent = badge;
+        g.appendChild(badgeEl);
       }
     }
 
-    const iconBrightness = hasActivePath && onPath ? 1 : (isUnlocked ? 0.75 : 0.35);
-    const iconEl = svgEl("text", {
-      y: 1, "font-size": iconSize,
-      "text-anchor": "middle", "dominant-baseline": "central",
-      opacity: iconBrightness, "pointer-events": "none",
-    });
-    iconEl.textContent = skill.icon;
-    g.appendChild(iconEl);
-
-    // K / S / D badge on the tree so the three layers are visible on the map
-    const badge = layerBadge[layer];
-    if (badge) {
-      const badgeEl = svgEl("text", {
-        y: r + 18, "font-size": 11, "font-weight": "700",
-        fill: color, "text-anchor": "middle", "dominant-baseline": "central",
-        opacity: hasActivePath && onPath ? 1 : 0.7, "pointer-events": "none",
+    // Expert node: show "EXPERT"
+    if (skill.id === "expert") {
+      const endLabel = svgEl("text", {
+        y: r + 32, "font-size": 12, "font-weight": "700",
+        fill: EXPERT_COLOR, "text-anchor": "middle", "dominant-baseline": "central",
+        opacity: 0.95, "pointer-events": "none", "letter-spacing": "0.5",
       });
-      badgeEl.textContent = badge;
-      g.appendChild(badgeEl);
+      endLabel.textContent = "EXPERT";
+      g.appendChild(endLabel);
     }
 
-    if (isUnlocked && skill.id !== "root") {
+    if (isUnlocked) {
+      const rad = (skill.radius || 28) + (RADIUS_BOOST[skill.tier] || 0);
       const ck = svgEl("text", {
-        x: r - 5, y: -(r - 5),
+        x: rad - 5, y: -(rad - 5),
         "font-size": 13, fill: "var(--gold)",
         "text-anchor": "middle", "dominant-baseline": "central",
         "pointer-events": "none",
@@ -349,6 +433,101 @@ function buildTree() {
     g.addEventListener("click", () => selectSkill(skill.id));
     g.style.cursor = "pointer";
     treeGroup.appendChild(g);
+  }
+
+  // ── Overlay: ONE clear selected-career path ───────────────────────────
+  // Draw the active path above nodes to guarantee continuity (no cut-offs).
+  if (selectedPath && selectedPath.length >= 2) {
+    const overlay = svgEl("g", { id: "active-path-overlay", "pointer-events": "none" });
+    const segWidth = 12;
+    for (let i = 0; i < selectedPath.length - 1; i++) {
+      const fromId = selectedPath[i];
+      const toId = selectedPath[i + 1];
+      const from = SKILL_MAP[fromId];
+      const to = SKILL_MAP[toId];
+      if (!from || !to) continue;
+      if (from.panelOnly || to.panelOnly) continue;
+
+      const isToExpert = to.id === "expert";
+      // Trim overlay segments slightly so they meet node rings cleanly.
+      // For the final segment into Expert, draw center-to-center to avoid any
+      // perception of a missing last link due to trimming.
+      const fx0 = from.x + OX, fy0 = from.y + OY;
+      const tx0 = to.x + OX, ty0 = to.y + OY;
+      const dx0 = tx0 - fx0, dy0 = ty0 - fy0;
+      const dist = Math.max(1, Math.hypot(dx0, dy0));
+      const ux = dx0 / dist, uy = dy0 / dist;
+      const rf0 = renderRadius(from);
+      const rt0 = renderRadius(to);
+      const maxTrim = Math.max(0, dist / 2 - 2);
+      const rf = isToExpert ? 0 : Math.min(rf0, maxTrim);
+      const rt = isToExpert ? 0 : Math.min(rt0, maxTrim);
+      const fx = fx0 + ux * rf;
+      const fy = fy0 + uy * rf;
+      const tx = tx0 - ux * rt;
+      const ty = ty0 - uy * rt;
+      const d = `M ${fx} ${fy} L ${tx} ${ty}`;
+      const stroke = getEdgeColorFrom(from, to) || "#fff";
+
+      const seg = svgEl("path", {
+        d,
+        fill: "none",
+        stroke,
+        "stroke-width": isToExpert ? 18 : segWidth,
+        opacity: 1,
+        "stroke-linecap": "round",
+        "stroke-linejoin": "round",
+      });
+      if (isToExpert) {
+        // Draw a second, stronger gold pass to guarantee visibility.
+        const gold = svgEl("path", {
+          d,
+          fill: "none",
+          stroke: EXPERT_COLOR,
+          "stroke-width": 22,
+          opacity: 1,
+          "stroke-linecap": "round",
+          "stroke-linejoin": "round",
+        });
+        gold.setAttribute("filter", "url(#glow-gold)");
+        overlay.appendChild(gold);
+        seg.setAttribute("filter", "url(#glow-gold)");
+      }
+      overlay.appendChild(seg);
+    }
+
+    // Extra safety: if Problem Solving and Expert are both in the path,
+    // draw a VERY clear, direct gold line between their centres so the
+    // final hop is ALWAYS visible.
+    const psIndex = selectedPath.indexOf("problem_solving");
+    const exIndex = selectedPath.indexOf("expert");
+    if (psIndex !== -1 && exIndex !== -1) {
+      const from = SKILL_MAP["problem_solving"];
+      const to = SKILL_MAP["expert"];
+      if (from && to && !from.panelOnly && !to.panelOnly) {
+        // Draw centre-to-centre with a very thick gold stroke that
+        // literally crosses both nodes. This ignores trimming math so
+        // it cannot visually disappear.
+        const fx = from.x + OX;
+        const fy = from.y + OY;
+        const tx = to.x + OX;
+        const ty = to.y + OY;
+        const d = `M ${fx} ${fy} L ${tx} ${ty}`;
+        const psSeg = svgEl("path", {
+          d,
+          fill: "none",
+          stroke: EXPERT_COLOR,
+          "stroke-width": 26,
+          opacity: 1,
+          "stroke-linecap": "round",
+          "stroke-linejoin": "round",
+        });
+        psSeg.setAttribute("filter", "url(#glow-gold)");
+        overlay.appendChild(psSeg);
+      }
+    }
+
+    treeGroup.appendChild(overlay);
   }
 
 
@@ -377,6 +556,9 @@ function showCrosscutDetail(id) {
   document.getElementById("panel-tools-section").classList.add("hidden");
   document.getElementById("panel-prereqs-section").classList.add("hidden");
   document.getElementById("panel-competencies-section").classList.add("hidden");
+  document.getElementById("panel-zone-knowledge").classList.add("hidden");
+  document.getElementById("panel-zone-skills").classList.add("hidden");
+  document.getElementById("panel-zone-disposition").classList.add("hidden");
   document.getElementById("panel-learn-section").classList.add("hidden");
 
   const careersSec = document.getElementById("panel-careers-section");
@@ -399,7 +581,18 @@ function showCrosscutDetail(id) {
 function selectSkill(id) {
   state.selected = id;
   const skill = SKILL_MAP[id];
-  state.activePath = (skill?.tier === "career") ? getCareerPath(id) : new Set();
+  state.activeEdges = new Set();
+  if (skill?.tier === "career" && typeof CAREER_PATHS !== "undefined" && CAREER_PATHS[id]) {
+    const path = CAREER_PATHS[id];
+    state.activePath = new Set(path);
+    for (let i = 0; i < path.length - 1; i++) {
+      state.activeEdges.add(`${path[i]}->${path[i + 1]}`);
+    }
+  } else if (skill?.id === "expert" || skill?.id === "start" || skill?.nodeType) {
+    state.activePath = new Set([id]);
+  } else {
+    state.activePath = new Set();
+  }
   buildTree();
   showDetail(id);
   document.querySelectorAll(".cm-card").forEach(c => {
@@ -411,6 +604,12 @@ function showDetail(id) {
   const skill = SKILL_MAP[id];
   panelEmpty.classList.add("hidden");
   panelContent.classList.remove("hidden");
+
+  // Knowledge, Skills, Disposition: only for careers — hide by default for all nodes
+  document.getElementById("panel-zone-knowledge").classList.add("hidden");
+  document.getElementById("panel-zone-skills").classList.add("hidden");
+  document.getElementById("panel-zone-disposition").classList.add("hidden");
+
   // Restore section headings that crosscut detail may have overwritten
   document.querySelector("#panel-careers-section h4").textContent = "Opens Pathways To";
   document.querySelector("#panel-soft-section h4").textContent = "Disposition/Characteristics";
@@ -432,59 +631,64 @@ function showDetail(id) {
   // Title
   document.getElementById("panel-title").textContent = skill.label.replace("\n", " ");
 
-  // Type label
-  const tierLabels = { root: "Starting Point · Everyone begins here", foundation: "Foundation Skill · Required for all pathways", branch: "Specialization · Choose your direction", advanced: "Advanced Competency · Unlocks career roles", career: "Career Destination · Your target role" };
-  document.getElementById("panel-type-label").textContent = tierLabels[skill.tier] || "";
+  // Type label: Start is just "Start"; dispositions (e.g. Collaboration) show as Disposition
+  const tierLabels = {
+    root: "Start · All paths begin here",
+    branch: "Specialization · Choose your direction",
+    advanced: "Advanced Competency · Unlocks career roles",
+    career: "Start of path · Gain the Knowledge, Skills & Disposition below to reach End (Expert)",
+    expert: "Expert · All career paths lead here"
+  };
+  const typeLabel = (skill.cc2020Layer === "dispositions" && skill.tier === "branch")
+    ? "Disposition · Professional attitudes and behaviors"
+    : (tierLabels[skill.tier] || "");
+  document.getElementById("panel-type-label").textContent = typeLabel;
 
-  // CC2020 layer (Knowledge / Skills / Dispositions)
-  const layerLabels = { knowledge: "Layer: Knowledge", skills: "Layer: Skills", dispositions: "Layer: Dispositions" };
-  const layerEl = document.getElementById("panel-cc2020-layer");
-  if (skill.cc2020Layer && layerLabels[skill.cc2020Layer]) {
-    layerEl.textContent = layerLabels[skill.cc2020Layer];
-    layerEl.classList.remove("hidden");
-  } else {
-    layerEl.textContent = "";
-    layerEl.classList.add("hidden");
-  }
-
-  // Description
+  // Description (duty of the job/competency)
   document.getElementById("panel-desc").textContent = skill.desc;
 
   // Tools — hidden
   document.getElementById("panel-tools-section").classList.add("hidden");
-
-  // Prereqs — hidden
   document.getElementById("panel-prereqs-section").classList.add("hidden");
+  document.getElementById("panel-competencies-section").classList.add("hidden");
+  document.getElementById("panel-soft-section").classList.add("hidden");
 
-  // Disposition/Characteristics (CC2020)
-  const dispositions = skill.dispositions || skill.softSkills;
-  const softSec = document.getElementById("panel-soft-section");
-  if (dispositions && dispositions.length) {
-    softSec.classList.remove("hidden");
-    document.getElementById("panel-soft").innerHTML =
-      `<div class="tag-group">${dispositions.map(s => `<span class="tag soft-tag">${s}</span>`).join("")}</div>`;
-  } else { softSec.classList.add("hidden"); }
+  // Only careers get the 3 parts: Knowledge, Skills, Dispositions (CC2020)
+  if (skill.tier === "career") {
+    document.getElementById("panel-zone-knowledge-title").textContent = "Knowledge";
+    document.getElementById("panel-zone-skills-title").textContent = "Skills";
+    document.getElementById("panel-zone-disposition-title").textContent = "Dispositions";
 
-  // Competencies (CC2020: knowledge + skill level)
-  const compSec = document.getElementById("panel-competencies-section");
-  const skillLevel = skill.skillLevel || "Apply";
-  const compBullets = skill.competencies && skill.competencies.length
-    ? skill.competencies
-    : [skill.desc ? skill.desc.split(".")[0].trim() + "." : "Apply knowledge and skills in context."];
-  compSec.classList.remove("hidden");
-  document.getElementById("panel-competencies").innerHTML =
-    `<p class="panel-skill-level"><strong>Skill level:</strong> ${skillLevel}</p><ul class="panel-comp-list">${compBullets.map(c => `<li>${c}</li>`).join("")}</ul>`;
+    const comps = skill.competencies && skill.competencies.length ? skill.competencies : [];
+    const knowledgeBullets = (skill.knowledge && skill.knowledge.length ? skill.knowledge : comps.filter(c => /knowledge|understand/i.test(c))).slice(0, 3);
+    const skillBullets = (skill.skills && skill.skills.length ? skill.skills : comps.filter(c => !/knowledge|understand/i.test(c))).slice(0, 3);
+    const dispositions = (skill.dispositions || skill.softSkills || []).slice(0, 2);
 
-  // Career outcomes (for non-career nodes)
+    document.getElementById("panel-zone-knowledge-content").innerHTML =
+      `<ul>${knowledgeBullets.map(c => `<li>${c}</li>`).join("")}</ul>`;
+    document.getElementById("panel-zone-skills-content").innerHTML =
+      `<ul>${skillBullets.map(c => `<li>${c}</li>`).join("")}</ul>`;
+    document.getElementById("panel-zone-disposition-content").innerHTML = dispositions.length
+      ? `<ul>${dispositions.map(s => `<li>${s}</li>`).join("")}</ul>`
+      : `<ul><li>Professional attitudes for this role.</li></ul>`;
+
+    document.getElementById("panel-zone-knowledge").classList.remove("hidden");
+    document.getElementById("panel-zone-skills").classList.remove("hidden");
+    document.getElementById("panel-zone-disposition").classList.remove("hidden");
+  }
+
+  // "Opens Pathways To" only for career nodes (not for skill/knowledge/disposition nodes)
   const careersSec = document.getElementById("panel-careers-section");
-  if (skill.careers && skill.careers.length) {
+  if (skill.tier === "career" && skill.careers && skill.careers.length) {
     careersSec.classList.remove("hidden");
     const container = document.getElementById("panel-careers");
     container.innerHTML = skill.careers.map(c => {
       const cs = SKILL_MAP[c];
       return `<div class="career-item">${cs ? cs.icon : "◈"} ${cs ? cs.label.replace("\n"," ") : c}</div>`;
     }).join("");
-  } else { careersSec.classList.add("hidden"); }
+  } else {
+    careersSec.classList.add("hidden");
+  }
 
   // Learning Sources — hidden
   document.getElementById("panel-learn-section").classList.add("hidden");
@@ -523,10 +727,10 @@ function unlockSkill(id) {
 
 // ── Career Mapping Panel ──────────────────────────────────────────────────
 const CAREER_IDS = [
-  "ml_eng","ai_researcher","data_sci","applied_ai_eng",
-  "sec_analyst","pen_tester","sec_arch","ir_analyst",
-  "edge_ai_eng","embedded_ml_eng","robotics_eng","iot_sec_eng",
-  "ai_sec_eng","adv_ml_eng","threat_intel","resilient_auto_eng",
+  "ml_eng", "data_sci",
+  "pen_tester", "sec_arch",
+  "edge_ai_eng", "embedded_ml_eng",
+  "ai_sec_eng", "threat_intel",
 ];
 
 function updateCareerMapping() {
@@ -581,7 +785,7 @@ function showToast(msg) {
 
 // ── Reset ─────────────────────────────────────────────────────────────────
 document.getElementById("reset-btn").addEventListener("click", () => {
-  state.unlocked = new Set(["root"]);
+  state.unlocked = new Set();
   state.selected = null;
   state.activePath = new Set();
   state.xp = 0;
@@ -611,7 +815,7 @@ function fitToView() {
   // Size the SVG viewBox to the tree's natural bounding area
   const W = container.clientWidth;
   const H = container.clientHeight;
-  const TREE_W = 1600, TREE_H = 1060;
+  const TREE_W = 2200, TREE_H = 1700;
   const scaleX = W / TREE_W;
   const scaleY = H / TREE_H;
   const scale = Math.min(scaleX, scaleY) * 0.9;

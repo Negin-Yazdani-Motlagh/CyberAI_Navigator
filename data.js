@@ -1,508 +1,229 @@
-// ─── Skill Tree Data ───────────────────────────────────────────────────────
-// ACM/IEEE CC2020 Sec. 5.2: Completing a competency = Knowledge + Skills + Dispositions.
-// Map layers: KNOWLEDGE (bottom) → SKILLS (middle) → DISPOSITIONS · Career (top).
-// cc2020Layer: "knowledge" | "skills" | "dispositions" — which CC2020 layer this node belongs to.
+// ─── CyberAI Navigator — Path-based career roadmap (ACM CC2020) ─────────────
+// Rule: Each career has ONE linear path Start → Knowledge → Skills → Dispositions → Expert.
+// Edges only between adjacent nodes in each path. Expert is global.
 
-const SKILLS = [
+// Node definitions: id, label, type (career|foundation|knowledge|skill|disposition|expert)
+const NODE_DEFS = {
+  expert:   { id: "expert",   label: "EXPERT",                type: "expert",      layer: 4, icon: "⭐", desc: "The goal of every path. Deep expertise in your chosen career." },
+  // Career nodes (one per job at bottom of map) — 2 per category
+  data_sci:     { id: "data_sci",     label: "Data Scientist",    type: "career", layer: 0, icon: "📊", desc: "Extracts insights from data to drive decisions." },
+  ml_eng:       { id: "ml_eng",       label: "ML Engineer",       type: "career", layer: 0, icon: "🤖", desc: "Builds and deploys production ML systems." },
+  pen_tester:   { id: "pen_tester",   label: "Pen Tester",        type: "career", layer: 0, icon: "🔓", desc: "Finds and reports vulnerabilities." },
+  sec_arch:     { id: "sec_arch",     label: "Security Architect", type: "career", layer: 0, icon: "🏗️", desc: "Designs organizational security." },
+  ai_sec_eng:   { id: "ai_sec_eng",   label: "AI Security Eng",   type: "career", layer: 0, icon: "🔐", desc: "Secures AI/ML systems." },
+  threat_intel: { id: "threat_intel", label: "Threat Intel",      type: "career", layer: 0, icon: "📡", desc: "Uses AI/ML for threat detection." },
+  edge_ai_eng:  { id: "edge_ai_eng",  label: "Edge AI Engineer",  type: "career", layer: 0, icon: "📱", desc: "Deploys ML on edge devices." },
+  embedded_ml_eng: { id: "embedded_ml_eng", label: "Embedded ML", type: "career", layer: 0, icon: "🔧", desc: "Runs ML on embedded systems." },
+  // Knowledge (K) — Blue
+  python:   { id: "python",   label: "Python / R",            type: "knowledge",  layer: 2, icon: "💻", desc: "Programming fundamentals for data and automation." },
+  sql:      { id: "sql",      label: "SQL",                   type: "knowledge",  layer: 2, icon: "📊", desc: "Data storage, queries, and databases." },
+  statistics: { id: "statistics", label: "Statistics",      type: "knowledge",  layer: 2, icon: "📈", desc: "Statistical methods and inference." },
+  linear_algebra: { id: "linear_algebra", label: "Linear Algebra", type: "knowledge", layer: 2, icon: "∑", desc: "Vectors, matrices, and linear operations." },
+  ml_basics: { id: "ml_basics", label: "ML Basics",          type: "knowledge",  layer: 2, icon: "🧠", desc: "Core machine learning concepts." },
+  networking: { id: "networking", label: "Networking",      type: "knowledge",  layer: 2, icon: "🌐", desc: "Networks, protocols, and infrastructure." },
+  cryptography: { id: "cryptography", label: "Cryptography", type: "knowledge",  layer: 2, icon: "🔐", desc: "Encryption, hashing, and secure protocols." },
+  threat_models: { id: "threat_models", label: "Threat Models", type: "knowledge", layer: 2, icon: "⚖️", desc: "Threat modeling and risk frameworks." },
+  // Skills (S) — Green
+  data_viz: { id: "data_viz", label: "Data Visualization",   type: "skill",      layer: 3, icon: "📉", desc: "Visualizing data and communicating insights." },
+  model_training: { id: "model_training", label: "Model Training", type: "skill", layer: 3, icon: "🔧", desc: "Training and tuning ML models." },
+  experiment_design: { id: "experiment_design", label: "Experiment Design", type: "skill", layer: 3, icon: "🧪", desc: "Designing and running experiments." },
+  deep_learning: { id: "deep_learning", label: "Deep Learning", type: "skill", layer: 3, icon: "🦾", desc: "Neural networks and deep architectures." },
+  model_deployment: { id: "model_deployment", label: "Model Deployment", type: "skill", layer: 3, icon: "🚀", desc: "Deploying and serving models in production." },
+  mlops:   { id: "mlops",    label: "MLOps",                 type: "skill",      layer: 3, icon: "⚙️", desc: "ML pipelines, monitoring, and operations." },
+  vuln_analysis: { id: "vuln_analysis", label: "Vulnerability Analysis", type: "skill", layer: 3, icon: "🔍", desc: "Finding and assessing vulnerabilities." },
+  incident_response: { id: "incident_response", label: "Incident Response", type: "skill", layer: 3, icon: "🛡️", desc: "Responding to and containing security incidents." },
+  security_arch: { id: "security_arch", label: "Security Architecture", type: "skill", layer: 3, icon: "🏗️", desc: "Designing secure systems and controls." },
+  threat_intel_skill: { id: "threat_intel_skill", label: "Threat Intelligence", type: "skill", layer: 3, icon: "📡", desc: "Analyzing and reporting on threats." },
+  // Dispositions (D) — Gold
+  critical_thinking: { id: "critical_thinking", label: "Critical Thinking", type: "disposition", layer: 4, icon: "💡", desc: "Analyzing and evaluating information rigorously." },
+  communication: { id: "communication", label: "Communication", type: "disposition", layer: 4, icon: "💬", desc: "Communicating clearly with technical and non-technical audiences." },
+  ethical_resp: { id: "ethical_resp", label: "Ethical Responsibility", type: "disposition", layer: 4, icon: "⚖️", desc: "Applying ethics in technical decisions." },
+  security_mindset: { id: "security_mindset", label: "Security Mindset", type: "disposition", layer: 4, icon: "🔒", desc: "Thinking like an attacker; defense in depth." },
+  problem_solving: { id: "problem_solving", label: "Problem Solving", type: "disposition", layer: 4, icon: "🎯", desc: "Structured problem decomposition and solution finding." },
+  collaboration: { id: "collaboration", label: "Collaboration", type: "disposition", layer: 4, icon: "🤝", desc: "Working effectively in teams." },
+};
 
-  // ══════════════════════════════════════════════════
-  //  CORE HUB
-  // ══════════════════════════════════════════════════
-  {
-    id: "root",
-    label: "Lifelong Learning\n& Adaptability",
-    icon: "♾️",
-    tier: "root",
-    branch: "common",
-    x: 700, y: 720,
-    radius: 52,
-    desc: "The drive to continuously update your skills, embrace new tools, and adapt in a rapidly evolving field. In AI and cybersecurity, yesterday's best practice can become tomorrow's vulnerability — adaptability is not optional, it is the foundation of everything.",
-    skillLevel: "Understand",
-    competencies: ["Understand core computing and professional context", "Self-directed learning and reflection"],
-    dispositions: ["Adaptable", "Self-directed", "Responsible"],
-    tools: [],
-    learningSources: { courses: [], labs: [], projects: [] },
-    prereqs: [],
-    careers: [],
-    salary: null,
-    xp: 0,
-    cc2020Layer: "knowledge",
-  },
+// Career paths: Career (bottom) → … → Expert. 2 careers per category.
+const CAREER_PATHS = {
+  data_sci:     ["data_sci", "python", "sql", "statistics", "data_viz", "model_training", "experiment_design", "critical_thinking", "communication", "expert"],
+  // ML Engineer path: include Python knowledge before Linear Algebra / ML Basics
+  ml_eng:       ["ml_eng", "python", "linear_algebra", "ml_basics", "deep_learning", "model_deployment", "mlops", "problem_solving", "expert"],
+  pen_tester:   ["pen_tester", "python", "networking", "threat_models", "vuln_analysis", "security_arch", "ethical_resp", "security_mindset", "expert"],
+  sec_arch:     ["sec_arch", "networking", "cryptography", "threat_models", "security_arch", "vuln_analysis", "ethical_resp", "problem_solving", "expert"],
+  ai_sec_eng:   ["ai_sec_eng", "python", "ml_basics", "threat_models", "model_deployment", "vuln_analysis", "ethical_resp", "security_mindset", "expert"],
+  threat_intel: ["threat_intel", "python", "statistics", "threat_models", "threat_intel_skill", "data_viz", "critical_thinking", "communication", "expert"],
+  edge_ai_eng:  ["edge_ai_eng", "python", "ml_basics", "model_deployment", "mlops", "problem_solving", "expert"],
+  embedded_ml_eng: ["embedded_ml_eng", "python", "linear_algebra", "ml_basics", "deep_learning", "model_deployment", "problem_solving", "expert"],
+};
 
-  // ══════════════════════════════════════════════════
-  //  SKILLS LAYER (CC2020) — 4 competency clusters
-  // ══════════════════════════════════════════════════
-  {
-    id: "foundations_cluster",
-    label: "Foundations",
-    icon: "🏗️",
-    tier: "advanced",
-    branch: "common",
-    x: 160, y: 450,
-    radius: 42,
-    desc: "Core transferable skills every professional needs regardless of specialization — thinking clearly, solving problems methodically, managing time under pressure, and reflecting honestly on your own practice.",
-    skillLevel: "Apply",
-    competencies: ["Knowledge of problem-solving methods and core computing concepts", "Apply analytical and critical thinking", "Problem solving and troubleshooting", "Time management and task organization"],
-    dispositions: ["Problem Solving", "Critical Thinking", "Self-Learning", "Time Management", "Reflective Practice"],
-    softSkills: ["Problem Solving", "Critical Thinking", "Self-Learning", "Time Management", "Reflective Practice"],
-    tools: [],
-    learningSources: { courses: [], labs: [], projects: [] },
-    prereqs: ["root"],
-    careers: ["Data Scientist", "Security Analyst", "Penetration Tester", "Threat Intel Engineer"],
-    salary: null,
-    xp: 80,
-    cc2020Layer: "skills",
-  },
-  {
-    id: "comm_teamwork",
-    label: "Communication\n& Teamwork",
-    icon: "🤝",
-    tier: "advanced",
-    branch: "ai",
-    x: 490, y: 430,
-    radius: 42,
-    desc: "Translating complex technical work across disciplines, listening actively, and collaborating effectively in cross-functional teams. No AI system or security posture is built alone — communication determines whether good work has real impact.",
-    skillLevel: "Apply",
-    competencies: ["Oral and written technical communication", "Collaboration and teamwork", "Active listening and conflict resolution"],
-    dispositions: ["Technical Communication", "Collaboration", "Active Listening", "Conflict Resolution"],
-    softSkills: ["Technical Communication", "Collaboration", "Active Listening", "Conflict Resolution"],
-    tools: [],
-    learningSources: { courses: [], labs: [], projects: [] },
-    prereqs: ["root"],
-    careers: ["AI Research Scientist", "Data Scientist", "ML Engineer"],
-    salary: null,
-    xp: 80,
-    cc2020Layer: "skills",
-  },
-  {
-    id: "ethics_resp",
-    label: "Ethics &\nResponsibility",
-    icon: "⚖️",
-    tier: "advanced",
-    branch: "cyber",
-    x: 910, y: 430,
-    radius: 42,
-    desc: "Applying moral judgment when designing AI systems or conducting security work — responsible disclosure, data privacy, algorithmic fairness, and understanding the broader societal impact of the systems you build and defend.",
-    skillLevel: "Evaluate",
-    competencies: ["Evaluate ethical and professional choices", "Understand security, privacy, and societal impact"],
-    dispositions: ["Ethical Decision Making", "Professional Ethics", "AI & Cybersecurity Ethics", "Social Impact Awareness"],
-    softSkills: ["Ethical Decision Making", "Professional Ethics", "AI & Cybersecurity Ethics", "Social Impact Awareness"],
-    tools: [],
-    learningSources: { courses: [], labs: [], projects: [] },
-    prereqs: ["root"],
-    careers: ["AI Security Engineer", "Adversarial ML Engineer", "IoT Security Engineer", "Security Architect"],
-    salary: null,
-    xp: 80,
-    cc2020Layer: "skills",
-  },
-  {
-    id: "leadership_innov",
-    label: "Leadership &\nInnovation",
-    icon: "🚀",
-    tier: "advanced",
-    branch: "hybrid",
-    x: 1230, y: 450,
-    radius: 42,
-    desc: "Driving projects forward, inspiring teams, thinking creatively, and planning strategically. Leaders in AI and cybersecurity don't just solve today's problems — they anticipate tomorrow's challenges and bring others along for the journey.",
-    skillLevel: "Create",
-    competencies: ["Knowledge of project lifecycle and team dynamics", "Project and task organization", "Creative thinking and strategic planning", "Leadership and coordination"],
-    dispositions: ["Project Management", "Creative Thinking", "Leadership Skills", "Strategic Planning"],
-    softSkills: ["Project Management", "Creative Thinking", "Leadership Skills", "Strategic Planning"],
-    tools: [],
-    learningSources: { courses: [], labs: [], projects: [] },
-    prereqs: ["root"],
-    careers: ["Security Architect", "Incident Response Engineer", "Resilient Autonomous Systems Engineer", "ML Engineer"],
-    salary: null,
-    xp: 80,
-    cc2020Layer: "skills",
-  },
+// Career metadata for panel (path careers only)
+const CAREER_META = {
+  data_sci:     { label: "Data Scientist",           desc: "Extracts insights from data to drive decisions. Path: Start → Python, SQL, Statistics → Data Viz, Model Training, Experiment Design → Critical Thinking, Communication → Expert.", knowledge: ["Python / R", "SQL", "Statistics"],           skills: ["Data Visualization", "Model Training", "Experiment Design"], dispositions: ["Critical Thinking", "Communication"] },
+  ml_eng:       { label: "ML Engineer",              desc: "Builds and deploys production ML systems. Path: Start → Python, Linear Algebra, ML Basics → Deep Learning, Model Deployment, MLOps → Problem Solving → Expert.", knowledge: ["Python / R", "Linear Algebra", "ML Basics"],   skills: ["Deep Learning", "Model Deployment", "MLOps"],            dispositions: ["Problem Solving"] },
+  pen_tester:   { label: "Penetration Tester",       desc: "Finds and reports vulnerabilities. Path: Start → Python, Networking, Threat Models → Vuln Analysis, Security Arch → Ethical Responsibility, Security Mindset → Expert.", knowledge: ["Python / R", "Networking", "Threat Models"], skills: ["Vulnerability Analysis", "Security Architecture"],     dispositions: ["Ethical Responsibility", "Security Mindset"] },
+  sec_arch:     { label: "Security Architect",       desc: "Designs organizational security. Path: Start → Networking, Cryptography, Threat Models → Security Arch, Vuln Analysis → Ethical Responsibility, Problem Solving → Expert.", knowledge: ["Networking", "Cryptography", "Threat Models"],  skills: ["Security Architecture", "Vulnerability Analysis"],    dispositions: ["Ethical Responsibility", "Problem Solving"] },
+  ai_sec_eng:   { label: "AI Security Engineer",    desc: "Secures AI/ML systems. Path: Start → Python, ML Basics, Threat Models → Model Deployment, Vuln Analysis → Ethical Responsibility, Security Mindset → Expert.", knowledge: ["Python / R", "ML Basics", "Threat Models"],   skills: ["Model Deployment", "Vulnerability Analysis"],          dispositions: ["Ethical Responsibility", "Security Mindset"] },
+  threat_intel: { label: "Threat Intel Engineer",    desc: "Uses AI/ML for threat detection. Path: Start → Python, Statistics, Threat Models → Threat Intel, Data Viz → Critical Thinking, Communication → Expert.", knowledge: ["Python / R", "Statistics", "Threat Models"], skills: ["Threat Intelligence", "Data Visualization"],         dispositions: ["Critical Thinking", "Communication"] },
+  edge_ai_eng:  { label: "Edge AI Engineer",         desc: "Deploys ML models on edge devices with performance and reliability constraints. Path: Start → Python, ML Basics → Model Deployment, MLOps → Problem Solving → Expert.", knowledge: ["Python / R", "ML Basics"], skills: ["Model Deployment", "MLOps"], dispositions: ["Problem Solving"] },
+  embedded_ml_eng: { label: "Embedded ML Engineer",  desc: "Builds and optimizes ML for embedded systems. Path: Start → Python, Linear Algebra, ML Basics → Deep Learning → Model Deployment → Problem Solving → Expert.", knowledge: ["Python / R", "Linear Algebra", "ML Basics"], skills: ["Deep Learning", "Model Deployment"], dispositions: ["Problem Solving"] },
+};
 
-  // ══════════════════════════════════════════════════
-  //  DISPOSITIONS LAYER (CC2020) — Career readiness
-  // ══════════════════════════════════════════════════
-  {
-    id: "data_sci",
-    label: "Data\nScientist",
-    icon: "📊",
-    tier: "career",
-    branch: "ai",
-    x: 200, y: 100,
-    radius: 44,
-    desc: "Extracts insights from complex datasets to drive business decisions. Works at the intersection of statistics, domain expertise, and software engineering.",
-    tools: ["Python", "R", "Tableau", "SQL", "Jupyter", "Spark"],
-    softSkills: ["Communication", "Analytical Thinking", "Business Translation", "Curiosity"],
-    learningSources: {
-      courses: ["Applied Data Science with Python (Coursera)", "Kaggle Data Science micro-courses"],
-      labs: ["Kaggle notebook competitions", "Seaborn & Matplotlib visualisation exercises"],
-      projects: ["End-to-end EDA and prediction project", "Build an interactive data dashboard"],
-    },
-    prereqs: ["foundations_cluster", "comm_teamwork"],
-    careers: [],
-    salary: "$105K – $165K / yr",
-    xp: 200,
-    cc2020Layer: "dispositions",
-  },
-  {
-    id: "ml_eng",
-    label: "ML\nEngineer",
-    icon: "🤖",
-    tier: "career",
-    branch: "ai",
-    x: 390, y: 80,
-    radius: 44,
-    desc: "Designs, trains, and deploys production-grade ML systems. A blend of software engineering discipline and data science expertise.",
-    tools: ["PyTorch", "TensorFlow", "Kubernetes", "FastAPI", "MLflow"],
-    softSkills: ["Analytical Thinking", "Problem Solving", "Collaboration", "Communication"],
-    learningSources: {
-      courses: ["MLOps Specialization (DeepLearning.AI)", "Full Stack Deep Learning"],
-      labs: ["Build and serve a model with FastAPI", "Kubeflow pipeline lab"],
-      projects: ["Deploy a production ML system with monitoring", "A/B test a model in a staging environment"],
-    },
-    prereqs: ["foundations_cluster", "leadership_innov"],
-    careers: [],
-    salary: "$130K – $200K / yr",
-    xp: 200,
-    cc2020Layer: "dispositions",
-  },
-  {
-    id: "ai_researcher",
-    label: "AI Research\nScientist",
-    icon: "🧬",
-    tier: "career",
-    branch: "ai",
-    x: 70, y: 80,
-    radius: 44,
-    desc: "Invents new AI algorithms and architectures. Publishes research, works on frontier models, and often requires a PhD or equivalent research experience.",
-    tools: ["PyTorch", "JAX", "Hugging Face", "LaTeX", "CUDA"],
-    softSkills: ["Curiosity & Continuous Learning", "Creativity / Innovation", "Analytical Thinking", "Scientific Communication"],
-    learningSources: {
-      courses: ["Deep Learning Specialization (DeepLearning.AI)", "CS231n / CS224n (Stanford)"],
-      labs: ["Reproduce a landmark research paper (ResNet, BERT)", "Hugging Face research model lab"],
-      projects: ["Publish an AI research blog post or preprint", "Novel architecture experiment on a benchmark"],
-    },
-    prereqs: ["comm_teamwork", "leadership_innov"],
-    careers: [],
-    salary: "$160K – $350K+ / yr",
-    xp: 200,
-    cc2020Layer: "dispositions",
-  },
+// ── Tree/branch layout: depth from Start, x by path-order (no global columns) ─
+const NODE_RADIUS = 28;
+const DEPTH_STEP = 155;   // vertical spacing between depth levels
+const LANE_WIDTH = 280;  // horizontal spacing between path lanes
 
-  // ══════════════════════════════════════════════════
-  //  CAREER ENDPOINTS — CYBERSECURITY
-  // ══════════════════════════════════════════════════
-  {
-    id: "pen_tester",
-    label: "Penetration\nTester",
-    icon: "🎯",
-    tier: "career",
-    branch: "cyber",
-    x: 920, y: 130,
-    radius: 44,
-    desc: "Ethically hacks systems to find and report vulnerabilities before malicious actors can exploit them. Operates under legal agreements and structured methodologies.",
-    tools: ["Metasploit", "Burp Suite", "Kali Linux", "OWASP", "Cobalt Strike"],
-    softSkills: ["Creativity", "Problem Solving", "Curiosity", "Ethical Judgment"],
-    learningSources: {
-      courses: ["OSCP (Offensive Security)", "TCM Security: Practical Bug Bounty"],
-      labs: ["HackTheBox Pro Labs", "TryHackMe offensive paths"],
-      projects: ["Submit a bug bounty finding", "Write a full penetration test report on a lab VM"],
-    },
-    prereqs: ["foundations_cluster", "ethics_resp"],
-    careers: [],
-    salary: "$95K – $155K / yr",
-    xp: 200,
-    cc2020Layer: "dispositions",
-  },
-  {
-    id: "sec_arch",
-    label: "Security\nArchitect",
-    icon: "🏛",
-    tier: "career",
-    branch: "cyber",
-    x: 1100, y: 100,
-    radius: 44,
-    desc: "Designs and oversees the security posture of entire organizations. Requires broad expertise across networking, cloud, identity, and risk management.",
-    tools: ["NIST Framework", "AWS/GCP/Azure Security", "Zero Trust", "SIEM"],
-    softSkills: ["Strategic Thinking", "Communication", "Risk Assessment", "Leadership"],
-    learningSources: {
-      courses: ["CISSP Exam Prep", "AWS/GCP Security Specialty certification"],
-      labs: ["Design a zero-trust architecture on paper", "Cloud security misconfiguration lab"],
-      projects: ["Enterprise security assessment report", "Threat model a real application using STRIDE"],
-    },
-    prereqs: ["leadership_innov", "ethics_resp"],
-    careers: [],
-    salary: "$140K – $220K / yr",
-    xp: 200,
-    cc2020Layer: "dispositions",
-  },
-  {
-    id: "ir_analyst",
-    label: "Incident Response\nEngineer",
-    icon: "🚨",
-    tier: "career",
-    branch: "cyber",
-    x: 1270, y: 130,
-    radius: 44,
-    desc: "Investigates active breaches, contains damage, eradicates threats, and leads recovery. Acts as the digital first responder when an organization is under attack.",
-    tools: ["Splunk", "CrowdStrike", "Volatility", "The Hive", "Elastic"],
-    softSkills: ["Crisis Decision Making", "Attention to Detail", "Communication", "Team Coordination"],
-    learningSources: {
-      courses: ["GCIH (GIAC Certified Incident Handler)", "SANS FOR508: Digital Forensics"],
-      labs: ["Blue Team Labs Online: IR scenarios", "LetsDefend incident response labs"],
-      projects: ["Incident response simulation exercise", "Build a detection-to-response playbook"],
-    },
-    prereqs: ["leadership_innov", "ethics_resp"],
-    careers: [],
-    salary: "$90K – $150K / yr",
-    xp: 200,
-    cc2020Layer: "dispositions",
-  },
+function buildMapNodes() {
+  const pathIds = Object.keys(CAREER_PATHS);
+  const nodeIds = new Set();
+  Object.values(CAREER_PATHS).forEach(path => path.forEach(id => nodeIds.add(id)));
 
-  // ══════════════════════════════════════════════════
-  //  HYBRID CAREERS
-  // ══════════════════════════════════════════════════
-  {
-    id: "ai_sec_eng",
-    label: "AI Security\nEngineer",
-    icon: "🔐",
-    tier: "career",
-    branch: "hybrid",
-    x: 620, y: 120,
-    radius: 44,
-    desc: "Secures AI/ML systems against adversarial attacks — data poisoning, model inversion, prompt injection, and model theft. A rare, high-demand intersection role.",
-    tools: ["CleverHans", "ART (IBM)", "MLflow", "OWASP ML", "TensorFlow Privacy"],
-    softSkills: ["Adversarial Thinking", "Analytical Thinking", "Collaboration", "Ethical Judgment"],
-    learningSources: {
-      courses: ["AI Security (MITRE ATLAS free training)", "Adversarial Robustness Toolbox tutorials"],
-      labs: ["Adversarial ML Exercise (IBM ART)", "OWASP ML Security Top 10 lab"],
-      projects: ["Secure Model Deployment pipeline", "Demonstrate a data poisoning attack and its defence"],
-    },
-    prereqs: ["ethics_resp", "leadership_innov"],
-    careers: [],
-    salary: "$150K – $230K / yr",
-    xp: 250,
-    cc2020Layer: "dispositions",
-  },
-  {
-    id: "threat_intel",
-    label: "Threat Intel\nEngineer",
-    icon: "🔍",
-    tier: "career",
-    branch: "hybrid",
-    x: 780, y: 120,
-    radius: 44,
-    desc: "Uses AI and ML to detect, classify, and predict emerging cyber threats at scale. Combines statistical anomaly detection with deep threat intelligence tradecraft.",
-    tools: ["MITRE ATT&CK", "OpenCTI", "ML anomaly models", "STIX/TAXII"],
-    softSkills: ["Pattern Recognition", "Analytical Thinking", "Communication", "Curiosity"],
-    learningSources: {
-      courses: ["MITRE ATT&CK Fundamentals (free)", "SANS FOR578: Cyber Threat Intelligence"],
-      labs: ["OpenCTI platform setup lab", "STIX/TAXII data modelling exercise"],
-      projects: ["Threat intelligence report on a real APT group", "Build an AI anomaly detector for network logs"],
-    },
-    prereqs: ["foundations_cluster", "ethics_resp"],
-    careers: [],
-    salary: "$110K – $180K / yr",
-    xp: 250,
-    cc2020Layer: "dispositions",
-  },
+  const getPathOrder = (nodeId) => {
+    for (let p = 0; p < pathIds.length; p++) {
+      const idx = CAREER_PATHS[pathIds[p]].indexOf(nodeId);
+      if (idx >= 0) return { pathIndex: p, indexInPath: idx };
+    }
+    return { pathIndex: 999, indexInPath: 0 };
+  };
 
-  // ══════════════════════════════════════════════════
-  //  CAREER ENDPOINTS — AI SYSTEMS (panel-only)
-  // ══════════════════════════════════════════════════
-  {
-    id: "applied_ai_eng",
-    label: "Applied AI\nEngineer",
-    icon: "⚡",
-    tier: "career",
-    branch: "ai",
-    panelOnly: true,
-    x: 0, y: 0, radius: 44,
-    desc: "Translates AI research into real-world products — recommendation systems, search engines, NLP pipelines, and vision systems. Heavy emphasis on production reliability and scale.",
-    tools: ["PyTorch", "TensorFlow", "FastAPI", "Docker", "Redis", "gRPC"],
-    softSkills: ["Problem Solving", "Collaboration", "Strategic Thinking", "Adaptability"],
-    learningSources: {
-      courses: ["Full Stack Deep Learning", "Designing ML Systems (book by Chip Huyen)"],
-      labs: ["Build an ML-powered REST API", "System design mock interviews for ML"],
-      projects: ["Deploy a recommendation system to production", "Build a real-time ML feature pipeline"],
-    },
-    prereqs: ["foundations_cluster", "leadership_innov"],
-    careers: [],
-    salary: "$125K – $195K / yr",
-    xp: 200,
-    cc2020Layer: "dispositions",
-  },
+  const positions = new Map();
+  // --- Band layout (prevents overlap and enforces order):
+  // Bottom row = Careers, then Knowledge, then Skills, then Dispositions, then Expert at top.
+  const allIds = Array.from(nodeIds);
+  const knowledgeIds = allIds.filter(id => NODE_DEFS[id]?.type === "knowledge");
+  const skillIds = allIds.filter(id => NODE_DEFS[id]?.type === "skill");
+  const dispositionIds = allIds.filter(id => NODE_DEFS[id]?.type === "disposition");
 
-  // ══════════════════════════════════════════════════
-  //  CAREER ENDPOINTS — CYBERSECURITY (panel-only)
-  // ══════════════════════════════════════════════════
-  {
-    id: "sec_analyst",
-    label: "Security\nAnalyst",
-    icon: "🔎",
-    tier: "career",
-    branch: "cyber",
-    panelOnly: true,
-    x: 0, y: 0, radius: 44,
-    desc: "Monitors networks and systems for threats, triages security alerts, and performs initial investigation of potential incidents. Often the entry point into a SOC career.",
-    tools: ["Splunk", "QRadar", "Elastic SIEM", "Wireshark", "MITRE ATT&CK"],
-    softSkills: ["Attention to Detail", "Analytical Thinking", "Communication", "Persistence"],
-    learningSources: {
-      courses: ["CompTIA CySA+", "Google Cybersecurity Certificate (Coursera)"],
-      labs: ["Splunk Boss of the SOC (BOTS v1)", "LetsDefend SOC analyst labs"],
-      projects: ["SOC alert triage simulation write-up", "Build a SIEM dashboard for a home lab"],
-    },
-    prereqs: ["foundations_cluster", "ethics_resp"],
-    careers: [],
-    salary: "$70K – $120K / yr",
-    xp: 150,
-    cc2020Layer: "dispositions",
-  },
+  const maxRowCount = Math.max(pathIds.length, knowledgeIds.length, skillIds.length, dispositionIds.length, 1);
+  const minXGap = NODE_RADIUS * 2 + 70;
+  const totalWidth = Math.max((maxRowCount + 1) * minXGap, 1200);
+  const centerX = totalWidth / 2;
 
-  // ══════════════════════════════════════════════════
-  //  CAREER ENDPOINTS — EDGE / EMBEDDED AI (panel-only)
-  // ══════════════════════════════════════════════════
-  {
-    id: "edge_ai_eng",
-    label: "Edge AI\nEngineer",
-    icon: "📡",
-    tier: "career",
-    branch: "edge",
-    panelOnly: true,
-    x: 0, y: 0, radius: 44,
-    desc: "Deploys and optimizes AI models on resource-constrained hardware — smartphones, cameras, sensors, and microcontrollers. Specializes in model compression, quantization, and on-device inference.",
-    tools: ["TensorFlow Lite", "ONNX", "OpenVINO", "NVIDIA Jetson", "CoreML", "TVM"],
-    softSkills: ["Systems Thinking", "Problem Solving", "Collaboration", "Adaptability"],
-    learningSources: {
-      courses: ["Edge AI Systems (Coursera)", "TinyML Specialization (HarvardX/edX)"],
-      labs: ["Deploy a model on Raspberry Pi / Jetson Nano", "TensorFlow Lite quantisation lab"],
-      projects: ["Real-time object detection on a mobile device", "Benchmark three compression strategies on a CNN"],
-    },
-    prereqs: ["foundations_cluster", "leadership_innov"],
-    careers: [],
-    salary: "$110K – $175K / yr",
-    xp: 200,
-    cc2020Layer: "dispositions",
-  },
-  {
-    id: "embedded_ml_eng",
-    label: "Embedded ML\nEngineer",
-    icon: "🔧",
-    tier: "career",
-    branch: "edge",
-    panelOnly: true,
-    x: 0, y: 0, radius: 44,
-    desc: "Writes ML inference code for bare-metal microcontrollers and FPGAs. Bridges hardware engineering and machine learning — optimizing every byte and clock cycle.",
-    tools: ["TensorFlow Micro", "C/C++", "CMSIS-NN", "Arduino", "STM32", "FPGA"],
-    softSkills: ["Attention to Detail", "Analytical Thinking", "Problem Solving", "Persistence"],
-    learningSources: {
-      courses: ["Embedded Systems (Coursera/EE)", "TensorFlow Micro (Arduino/ST)"],
-      labs: ["Keyword spotting demo on Arduino Nano 33 BLE", "CMSIS-NN inference lab"],
-      projects: ["Keyword spotting model on a microcontroller", "FPGA-accelerated ML inference demo"],
-    },
-    prereqs: ["foundations_cluster", "ethics_resp"],
-    careers: [],
-    salary: "$105K – $165K / yr",
-    xp: 200,
-    cc2020Layer: "dispositions",
-  },
-  {
-    id: "robotics_eng",
-    label: "Robotics & Autonomous\nSystems Engineer",
-    icon: "🦾",
-    tier: "career",
-    branch: "edge",
-    panelOnly: true,
-    x: 0, y: 0, radius: 44,
-    desc: "Builds intelligent autonomous agents — drones, self-driving vehicles, robotic arms, and UAVs. Combines computer vision, motion planning, and real-time control with ML.",
-    tools: ["ROS/ROS2", "OpenCV", "PyTorch", "Gazebo", "SLAM algorithms", "C++"],
-    softSkills: ["Systems Thinking", "Problem Solving", "Collaboration", "Adaptability"],
-    learningSources: {
-      courses: ["Robotics Specialization (Coursera/Penn)", "Self-Driving Car Engineer (Udacity)"],
-      labs: ["ROS2 simulation lab (Gazebo)", "OpenCV vision pipeline lab"],
-      projects: ["Autonomous navigation demo in simulation", "Computer vision object-tracking robot"],
-    },
-    prereqs: ["foundations_cluster", "leadership_innov"],
-    careers: [],
-    salary: "$115K – $185K / yr",
-    xp: 200,
-    cc2020Layer: "dispositions",
-  },
-  {
-    id: "iot_sec_eng",
-    label: "IoT Security\nEngineer",
-    icon: "🌐",
-    tier: "career",
-    branch: "edge",
-    panelOnly: true,
-    x: 0, y: 0, radius: 44,
-    desc: "Secures the vast landscape of connected devices — identifying firmware vulnerabilities, hardening device boot chains, and designing secure OTA update mechanisms.",
-    tools: ["Firmware analysis", "Binwalk", "OpenWRT", "MQTT security", "Shodan", "Zigbee"],
-    softSkills: ["Attention to Detail", "Analytical Thinking", "Problem Solving", "Ethical Judgment"],
-    learningSources: {
-      courses: ["IoT Security Fundamentals (SANS)", "Embedded Security (Coursera)"],
-      labs: ["Firmware analysis with Binwalk", "MQTT security testing lab"],
-      projects: ["IoT device security audit report", "Harden an off-the-shelf IoT device"],
-    },
-    prereqs: ["ethics_resp", "foundations_cluster"],
-    careers: [],
-    salary: "$100K – $160K / yr",
-    xp: 200,
-    cc2020Layer: "dispositions",
-  },
+  // Give extra headroom so the final step into Expert is never visually cramped.
+  const expertY = 40;
+  const TOP_GAP = 90; // extra spacing between Expert and the disposition row
+  const dispositionsY = expertY + DEPTH_STEP + TOP_GAP;
+  const skillsY = dispositionsY + DEPTH_STEP;
+  const knowledgeY = skillsY + DEPTH_STEP;
+  const careersY = knowledgeY + DEPTH_STEP;
 
-  // ══════════════════════════════════════════════════
-  //  CAREER ENDPOINTS — AI + CYBER HYBRID (panel-only)
-  // ══════════════════════════════════════════════════
-  {
-    id: "adv_ml_eng",
-    label: "Adversarial ML\nEngineer",
-    icon: "⚔",
-    tier: "career",
-    branch: "hybrid",
-    panelOnly: true,
-    x: 0, y: 0, radius: 44,
-    desc: "Researches and defends against adversarial attacks on AI — crafting and defeating adversarial examples, data poisoning campaigns, and model extraction attacks. One of the most cutting-edge roles in the field.",
-    tools: ["CleverHans", "Foolbox", "IBM ART", "PyTorch", "MITRE ATLAS"],
-    softSkills: ["Adversarial Thinking", "Curiosity", "Analytical Thinking", "Ethical Judgment"],
-    learningSources: {
-      courses: ["Adversarial ML (MITRE ATLAS training)", "Robust ML course (CMU)"],
-      labs: ["Adversarial ML Exercise (Foolbox / CleverHans)", "MITRE ATLAS attack simulation"],
-      projects: ["Attack and defend an ML model challenge", "Reproduce an adversarial example paper"],
-    },
-    prereqs: ["foundations_cluster", "ethics_resp"],
-    careers: [],
-    salary: "$140K – $220K / yr",
-    xp: 250,
-    cc2020Layer: "dispositions",
-  },
-  {
-    id: "resilient_auto_eng",
-    label: "Resilient Autonomous\nSystems Engineer",
-    icon: "🛡",
-    tier: "career",
-    branch: "hybrid",
-    panelOnly: true,
-    x: 0, y: 0, radius: 44,
-    desc: "Designs autonomous systems — drones, vehicles, robots — that remain safe and functional under cyberattack, sensor spoofing, and adversarial conditions. Combines robotics, AI safety, and cybersecurity.",
-    tools: ["ROS2", "Formal verification", "MITRE ATT&CK for ICS", "Gazebo", "OpenCV"],
-    softSkills: ["Systems Thinking", "Crisis Decision Making", "Strategic Thinking", "Problem Solving"],
-    learningSources: {
-      courses: ["Resilient Systems Design (MIT OpenCourseWare)", "Autonomous Vehicle Security (SANS)"],
-      labs: ["ROS2 adversarial sensor spoofing simulation", "Fault injection lab on a robotic arm"],
-      projects: ["Fault-tolerant autonomous navigation demo", "Red team a simulated autonomous vehicle pipeline"],
-    },
-    prereqs: ["leadership_innov", "ethics_resp"],
-    careers: [],
-    salary: "$130K – $210K / yr",
-    xp: 250,
-    cc2020Layer: "dispositions",
-  },
-];
+  positions.set("expert", { x: centerX, y: expertY });
 
-// Build a lookup map for convenience
+  // Careers row (packed a bit closer, centered)
+  const careerRowWidth = Math.min(totalWidth, 1300);
+  const careerStep = careerRowWidth / (pathIds.length + 1);
+  const careerLeft = (totalWidth - careerRowWidth) / 2;
+  pathIds.forEach((id, i) => {
+    positions.set(id, { x: careerLeft + (i + 1) * careerStep, y: careersY });
+  });
+
+  const placeRow = (ids, y) => {
+    const sorted = ids.slice().sort((a, b) => {
+      const pa = getPathOrder(a), pb = getPathOrder(b);
+      return pa.pathIndex - pb.pathIndex || pa.indexInPath - pb.indexInPath;
+    });
+    const step = totalWidth / (sorted.length + 1);
+    sorted.forEach((id, i) => positions.set(id, { x: (i + 1) * step, y }));
+  };
+
+  // Critical requirement: Knowledge immediately after Careers, and before Skills.
+  placeRow(knowledgeIds, knowledgeY);
+  placeRow(skillIds, skillsY);
+  placeRow(dispositionIds, dispositionsY);
+
+  const skills = [];
+  nodeIds.forEach(id => {
+    const def = NODE_DEFS[id];
+    if (!def) return;
+    const pos = positions.get(id) || { x: centerX, y: careersY };
+    const meta = def.type === "career" && CAREER_META[id];
+    skills.push({
+      id: def.id,
+      label: def.label,
+      icon: def.icon,
+      tier: def.type === "career" ? "career" : def.type === "expert" ? "expert" : def.type === "foundation" ? "foundation" : "branch",
+      branch: ["data_sci", "ml_eng"].includes(id) ? "ai" : ["pen_tester", "sec_arch"].includes(id) ? "cyber" : ["edge_ai_eng", "embedded_ml_eng"].includes(id) ? "edge" : "hybrid",
+      x: pos.x,
+      y: pos.y,
+      radius: NODE_RADIUS,
+      desc: meta ? meta.desc : def.desc,
+      knowledge: meta ? meta.knowledge || [] : [],
+      skills: meta ? meta.skills || [] : [],
+      dispositions: meta ? meta.dispositions || [] : [],
+      tools: [], learningSources: { courses: [], labs: [], projects: [] },
+      prereqs: [],
+      careers: [], salary: null, xp: 0,
+      cc2020Layer: def.type === "career" ? "career" : def.type === "expert" ? "expert" : def.type === "foundation" ? "foundation" : def.type === "knowledge" ? "knowledge" : def.type === "skill" ? "skills" : def.type === "disposition" ? "dispositions" : "skills",
+      nodeType: def.type,
+      panelOnly: false,
+    });
+  });
+  return skills;
+}
+
+// Edges: ONE clean path per career, using CAREER_PATHS:
+// Career → (its Knowledge in order) → (its Skills) → (its Dispositions) → Expert.
+function buildPathEdges() {
+  const seen = new Set();
+  const edges = [];
+
+  // For each career, follow its linear path as defined in CAREER_PATHS.
+  Object.keys(CAREER_PATHS).forEach(careerId => {
+    const path = CAREER_PATHS[careerId];
+    if (!Array.isArray(path) || path.length < 2) return;
+    // Ensure the path ends at expert for consistency
+    const fullPath = path[path.length - 1] === "expert" ? path : [...path, "expert"];
+    for (let i = 0; i < fullPath.length - 1; i++) {
+      const from = fullPath[i];
+      const to = fullPath[i + 1];
+      if (!from || !to) continue;
+      const key = `${from}->${to}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      edges.push({ from, to });
+    }
+  });
+
+  // Safety: ensure the final "Problem Solving → Expert" link is always present.
+  // Some careers end with Problem Solving; this guarantees that hop is never missing.
+  const psKey = "problem_solving->expert";
+  if (!seen.has(psKey)) {
+    seen.add(psKey);
+    edges.push({ from: "problem_solving", to: "expert" });
+  }
+
+  return edges;
+}
+
+const MAP_NODES = buildMapNodes();
+const PATH_EDGES = buildPathEdges();
+
+// Career entries for panel (path careers — no node on map, used for selection + panel content)
+const PATH_CAREER_SKILLS = Object.keys(CAREER_PATHS).map(id => ({
+  id,
+  label: CAREER_META[id]?.label || id,
+  icon: "🤖",
+  tier: "career",
+  branch: ["data_sci","ml_eng"].includes(id) ? "ai" : ["pen_tester","sec_arch"].includes(id) ? "cyber" : "hybrid",
+  x: 0, y: 0, radius: 44,
+  desc: CAREER_META[id]?.desc || "",
+  knowledge: CAREER_META[id]?.knowledge || [],
+  skills: CAREER_META[id]?.skills || [],
+  dispositions: CAREER_META[id]?.dispositions || [],
+  tools: [], learningSources: { courses: [], labs: [], projects: [] },
+  prereqs: [],
+  careers: [], salary: null, xp: 0,
+  cc2020Layer: "dispositions",
+  panelOnly: true,
+}));
+
+// Panel-only careers (2 per category — Edge section; path careers are on map)
+const PANEL_ONLY_CAREERS = [];
+
+// Merge: map nodes (include career nodes at bottom) + panel-only careers
+const SKILLS = [...MAP_NODES, ...PANEL_ONLY_CAREERS];
+
 const SKILL_MAP = Object.fromEntries(SKILLS.map(s => [s.id, s]));
 
-// Edge definitions: [from_id, to_id]
-// Auto-generated from prereqs but we define them explicitly for control
-const EDGES = SKILLS.flatMap(skill =>
-  skill.prereqs.map(prereqId => ({ from: prereqId, to: skill.id }))
-);
+// Edges from path definition only (no extra cross-edges)
+const EDGES = PATH_EDGES;
