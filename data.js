@@ -99,9 +99,9 @@ function buildMapNodes() {
   const totalWidth = Math.max((maxRowCount + 1) * minXGap, 1200);
   const centerX = totalWidth / 2;
 
-  // Give extra headroom so the final step into Expert is never visually cramped.
-  const expertY = 40;
-  const TOP_GAP = 90; // extra spacing between Expert and the disposition row
+  // Give extra headroom so the final step into Expert is clearly visible.
+  const expertY = 30;
+  const TOP_GAP = 170; // extra spacing between Expert and the disposition row
   const dispositionsY = expertY + DEPTH_STEP + TOP_GAP;
   const skillsY = dispositionsY + DEPTH_STEP;
   const knowledgeY = skillsY + DEPTH_STEP;
