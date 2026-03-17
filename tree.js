@@ -2,6 +2,7 @@
 
 const svg        = document.getElementById("skill-tree");
 const treeGroup  = document.getElementById("tree-group");
+const uiGroup    = document.getElementById("ui-group");
 const detailPanel= document.getElementById("detail-panel");
 const panelEmpty = document.getElementById("panel-empty");
 const panelContent = document.getElementById("panel-content");
@@ -140,6 +141,7 @@ function getPathColor() {
 // ── Build tree ────────────────────────────────────────────────────────────
 function buildTree() {
   treeGroup.innerHTML = "";
+  if (uiGroup) uiGroup.innerHTML = "";
 
   // ── Canvas: layered roadmap (Start → K → S → D → Expert)
   const OX = 60;
@@ -198,8 +200,8 @@ function buildTree() {
   };
 
   const pathColor = getPathColor();
-  // Keep legend pinned near the bottom, even if ELK places nodes low.
-  const legendY = CH - 12;
+  // Legend is drawn in uiGroup so it stays pinned (not panned/zoomed).
+  const legendY = CH - 16;
   const leg = (x, label, col) => {
     const g = svgEl("g", { "pointer-events": "none" });
     g.appendChild(svgEl("circle", { cx: x, cy: legendY, r: 6, fill: "none", stroke: col, "stroke-width": 2 }));
@@ -208,11 +210,12 @@ function buildTree() {
     g.appendChild(t);
     return g;
   };
-  treeGroup.appendChild(leg(14, "Knowledge", "#3b82f6"));
-  treeGroup.appendChild(leg(95, "Skill", "#22c55e"));
-  treeGroup.appendChild(leg(145, "Disposition", "#e5e7eb"));
-  treeGroup.appendChild(leg(235, "Career (bottom)", CAREER_NODE_COLOR));
-  treeGroup.appendChild(leg(315, "Expert", EXPERT_COLOR));
+  const legendHost = uiGroup || treeGroup;
+  legendHost.appendChild(leg(14, "Knowledge", "#3b82f6"));
+  legendHost.appendChild(leg(95, "Skill", "#22c55e"));
+  legendHost.appendChild(leg(145, "Disposition", "#e5e7eb"));
+  legendHost.appendChild(leg(235, "Career", CAREER_NODE_COLOR));
+  legendHost.appendChild(leg(300, "Expert", EXPERT_COLOR));
   if (state.selected && typeof CAREER_PATHS !== "undefined" && CAREER_PATHS[state.selected]) {
     const jobLabel = (CAREER_META && CAREER_META[state.selected]) ? CAREER_META[state.selected].label : state.selected;
     const pathLeg = svgEl("text", {
@@ -221,7 +224,7 @@ function buildTree() {
       "font-weight": "700", "pointer-events": "none",
     });
     pathLeg.textContent = `Path: ${jobLabel}`;
-    treeGroup.appendChild(pathLeg);
+    legendHost.appendChild(pathLeg);
   }
   const mapFlow = svgEl("text", {
     x: 14, y: CH - 2,
@@ -229,7 +232,7 @@ function buildTree() {
     "letter-spacing": "1", "pointer-events": "none",
   });
   mapFlow.textContent = "Bottom: one node per job. Path: Career → Foundation → … → Expert (top). Dispositions grouped. CC2020.";
-  treeGroup.appendChild(mapFlow);
+  (uiGroup || treeGroup).appendChild(mapFlow);
 
   // Expert halo (optional)
   const expertSkill = SKILL_MAP.expert;
