@@ -77,68 +77,81 @@ function buildMapNodes() {
   const pathIds = Object.keys(CAREER_PATHS);
   const nodeIds = new Set();
   Object.values(CAREER_PATHS).forEach(path => path.forEach(id => nodeIds.add(id)));
-
-  const getPathOrder = (nodeId) => {
-    for (let p = 0; p < pathIds.length; p++) {
-      const idx = CAREER_PATHS[pathIds[p]].indexOf(nodeId);
-      if (idx >= 0) return { pathIndex: p, indexInPath: idx };
-    }
-    return { pathIndex: 999, indexInPath: 0 };
-  };
-
+  // Organic shared-node layout:
+  // - Expert is top-center.
+  // - Careers sit along the bottom with slight arc.
+  // - Shared nodes are placed by barycenter of the careers that use them, with gentle vertical
+  //   positioning based on average path progress (so order is respected without rigid rows).
   const positions = new Map();
-  // --- Band layout (prevents overlap and enforces order):
-  // Bottom row = Careers, then Knowledge, then Skills, then Dispositions, then Expert at top.
-  const allIds = Array.from(nodeIds);
-  const knowledgeIds = allIds.filter(id => NODE_DEFS[id]?.type === "knowledge");
-  const skillIds = allIds.filter(id => NODE_DEFS[id]?.type === "skill");
-  const dispositionIds = allIds.filter(id => NODE_DEFS[id]?.type === "disposition");
 
-  const maxRowCount = Math.max(pathIds.length, knowledgeIds.length, skillIds.length, dispositionIds.length, 1);
-  const minXGap = NODE_RADIUS * 2 + 70;
-  const totalWidth = Math.max((maxRowCount + 1) * minXGap, 1200);
+  const totalWidth = 2200;
   const centerX = totalWidth / 2;
-
-  // Give extra headroom so the final step into Expert is clearly visible.
-  const expertY = 20;
-  const TOP_GAP = 230; // extra spacing between Expert and the disposition row
-  const dispositionsY = expertY + DEPTH_STEP + TOP_GAP;
-  const skillsY = dispositionsY + DEPTH_STEP;
-  const knowledgeY = skillsY + DEPTH_STEP;
-  const careersY = knowledgeY + DEPTH_STEP;
+  const expertY = 90;
+  const careersY = 1480;
 
   positions.set("expert", { x: centerX, y: expertY });
 
-  // Careers row (packed a bit closer, centered)
-  const careerRowWidth = Math.min(totalWidth, 1300);
+  // Career anchors: bottom arc for a more "map-like" feel.
+  const careerRowWidth = 1600;
   const careerStep = careerRowWidth / (pathIds.length + 1);
   const careerLeft = (totalWidth - careerRowWidth) / 2;
   pathIds.forEach((id, i) => {
-    positions.set(id, { x: careerLeft + (i + 1) * careerStep, y: careersY });
+    const x = careerLeft + (i + 1) * careerStep;
+    const arc = Math.sin(((i + 1) / (pathIds.length + 1)) * Math.PI) * 60;
+    positions.set(id, { x, y: careersY + arc });
   });
 
-  const placeRow = (ids, y) => {
-    const sorted = ids.slice().sort((a, b) => {
-      const pa = getPathOrder(a), pb = getPathOrder(b);
-      return pa.pathIndex - pb.pathIndex || pa.indexInPath - pb.indexInPath;
-    });
-    const step = totalWidth / (sorted.length + 1);
-    sorted.forEach((id, i) => positions.set(id, { x: (i + 1) * step, y }));
+  // Build usage stats for shared nodes.
+  const usage = new Map(); // nodeId -> { sumX, sumT, n }
+  for (const careerId of pathIds) {
+    const path = CAREER_PATHS[careerId] || [];
+    const cpos = positions.get(careerId);
+    if (!cpos || path.length < 2) continue;
+    const denom = Math.max(1, path.length - 1);
+    for (let i = 0; i < path.length; i++) {
+      const nodeId = path[i];
+      if (nodeId === careerId || nodeId === "expert") continue;
+      const def = NODE_DEFS[nodeId];
+      if (!def) continue;
+      const t = i / denom; // 0..1 progress along path
+      const u = usage.get(nodeId) || { sumX: 0, sumT: 0, n: 0 };
+      u.sumX += cpos.x;
+      u.sumT += t;
+      u.n += 1;
+      usage.set(nodeId, u);
+    }
+  }
+
+  // Deterministic small jitter per node to avoid perfect alignment but keep stable.
+  const hash01 = (s) => {
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return ((h >>> 0) % 1000) / 1000;
   };
 
-  // Critical requirement: Knowledge immediately after Careers, and before Skills.
-  placeRow(knowledgeIds, knowledgeY);
-  placeRow(skillIds, skillsY);
-  placeRow(dispositionIds, dispositionsY);
+  // Place non-career, non-expert nodes.
+  for (const nodeId of nodeIds) {
+    if (nodeId === "expert") continue;
+    const def = NODE_DEFS[nodeId];
+    if (!def) continue;
+    if (def.type === "career") continue; // already placed
 
-  // Ensure the final "last disposition → Expert" hop is always visually clear:
-  // place Systems Thinking near Expert (slight X offset).
-  const expertPos = positions.get("expert");
-  if (expertPos) {
-    // Force the Security Architect disposition pair to never overlap:
-    // Ethical Responsibility (left) → Systems Thinking (right) → Expert.
-    positions.set("ethical_resp", { x: expertPos.x - 220, y: dispositionsY + 60 });
-    positions.set("systems_thinking", { x: expertPos.x + 260, y: dispositionsY + 60 });
+    const u = usage.get(nodeId);
+    const jitter = (hash01(nodeId) - 0.5);
+    const x = u ? (u.sumX / u.n) : centerX;
+    // Map progress t into y without rigid bands; still ensures later nodes sit higher.
+    const t = u ? (u.sumT / u.n) : 0.5;
+    const y = careersY - (careersY - expertY) * (0.18 + 0.78 * t) + jitter * 70;
+
+    // Slight type-based nudges to keep the visual language (K lower than S lower than D).
+    const typeNudge = def.type === "knowledge" ? 120 : def.type === "skill" ? 30 : def.type === "disposition" ? -70 : 0;
+    positions.set(nodeId, {
+      x: Math.max(120, Math.min(totalWidth - 120, x + jitter * 90)),
+      y: Math.max(expertY + 80, Math.min(careersY - 80, y + typeNudge)),
+    });
   }
 
   const skills = [];
