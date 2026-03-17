@@ -292,10 +292,20 @@ function buildTree() {
     const fx0 = fp.x + OX, fy0 = fp.y + OY, tx0 = tp.x + OX, ty0 = tp.y + OY;
     let fx, fy, tx, ty;
     let pathD;
-    if (psToExpert && psOnPath) {
-      // Special case: only when selected, draw a bold, straight centre‑to‑centre line for
-      // Systems Thinking → Expert so it is absolutely obvious.
-      fx = fx0; fy = fy0; tx = tx0; ty = ty0;
+    if (psToExpert) {
+      // Treat like a normal edge; no special extra gold segment.
+      const dx0 = tx0 - fx0, dy0 = ty0 - fy0;
+      const dist = Math.max(1, Math.hypot(dx0, dy0));
+      const ux = dx0 / dist, uy = dy0 / dist;
+      const rf0 = renderRadius(from);
+      const rt0 = renderRadius(to);
+      const maxTrim = Math.max(0, dist / 2 - 2);
+      const rf = Math.min(rf0, maxTrim);
+      const rt = Math.min(rt0, maxTrim);
+      fx = fx0 + ux * rf;
+      fy = fy0 + uy * rf;
+      tx = tx0 - ux * rt;
+      ty = ty0 - uy * rt;
       pathD = `M ${fx} ${fy} L ${tx} ${ty}`;
     } else {
       // Draw edges from boundary-to-boundary to avoid "cut off" look behind nodes.
@@ -334,9 +344,9 @@ function buildTree() {
     const baseOpacity = unlocked ? 0.9 : 0.35;
     // Edge colour always follows the TARGET band (Knowledge/Skills/Dispositions/Expert),
     // even when a career is selected; highlight is conveyed via width + glow.
-    const edgeStroke = (psToExpert && psOnPath) ? EXPERT_COLOR : getEdgeColorFrom(from, to);
+    const edgeStroke = getEdgeColorFrom(from, to);
     const strokeW = (psToExpert && psOnPath)
-      ? 18
+      ? 10
       : (hasActivePath ? (onPath ? (toExpert ? toExpertWidth : activeWidth) : 2) : (toExpert ? 2.5 : baseWidth));
     const edgeOpacity = (psToExpert && psOnPath)
       ? 1
@@ -570,87 +580,7 @@ function buildTree() {
       overlay.appendChild(seg);
     }
 
-    // Extra safety: if Problem Solving and Expert are both in the path,
-    // draw a VERY clear, direct gold line between their centres so the
-    // final hop is ALWAYS visible.
-    const psIndex = selectedPath.indexOf("systems_thinking");
-    const exIndex = selectedPath.indexOf("expert");
-    if (psIndex !== -1 && exIndex !== -1) {
-      const from = SKILL_MAP["systems_thinking"];
-      const to = SKILL_MAP["expert"];
-      if (from && to && !from.panelOnly && !to.panelOnly) {
-        // Draw a slightly offset gold segment from Problem Solving to Expert so
-        // it is clearly visible even if the direct center line is under nodes.
-        const fp = getXY(from);
-        const tp = getXY(to);
-        const fx0 = fp.x + OX;
-        const fy0 = fp.y + OY;
-        const tx0 = tp.x + OX;
-        const ty0 = tp.y + OY;
-        const dx0 = tx0 - fx0;
-        const dy0 = ty0 - fy0;
-        const dist = Math.max(1, Math.hypot(dx0, dy0));
-        const ux = dx0 / dist;
-        const uy = dy0 / dist;
-        // perpendicular unit vector for small sideways offset
-        const px = -uy;
-        const py = ux;
-        const offset = 10;
-        const fx = fx0 + px * offset;
-        const fy = fy0 + py * offset;
-        const tx = tx0 + px * offset;
-        const ty = ty0 + py * offset;
-        const d = `M ${fx} ${fy} L ${tx} ${ty}`;
-        const psSeg = svgEl("path", {
-          d,
-          fill: "none",
-          stroke: EXPERT_COLOR,
-          "stroke-width": 22,
-          opacity: 1,
-          "stroke-linecap": "round",
-          "stroke-linejoin": "round",
-        });
-        psSeg.setAttribute("filter", "url(#glow-gold)");
-        overlay.appendChild(psSeg);
-      }
-    }
-
     treeGroup.appendChild(overlay);
-  }
-
-  // Topmost: one gold line Problem Solving → Expert when that path is selected.
-  // Drawn last so it is never covered by nodes.
-  //
-  // IMPORTANT: Use the *rendered* node positions from the DOM (the <g transform="translate(x,y)">),
-  // not SKILL_MAP coordinates, so this cannot drift due to layout/offset math.
-  if (selectedPath && selectedPath.indexOf("systems_thinking") !== -1 && selectedPath.indexOf("expert") !== -1 && state.selected) {
-    const fromG = document.getElementById("node-systems_thinking");
-    const toG = document.getElementById("node-expert");
-    if (fromG && toG) {
-      const parseTranslate = (el) => {
-        const t = el.getAttribute("transform") || "";
-        const m = t.match(/translate\(([-0-9.]+)[ ,]([-0-9.]+)\)/);
-        return m ? { x: Number(m[1]), y: Number(m[2]) } : null;
-      };
-      const fromP = parseTranslate(fromG);
-      const toP = parseTranslate(toG);
-      if (fromP && toP) {
-        const top = svgEl("g", { id: "ps-expert-top", "pointer-events": "none" });
-        const line = svgEl("path", {
-          id: "ps-expert-top-line",
-          d: `M ${fromP.x} ${fromP.y} L ${toP.x} ${toP.y}`,
-          fill: "none",
-          stroke: EXPERT_COLOR,
-          "stroke-width": 30,
-          opacity: 1,
-          "stroke-linecap": "round",
-          "stroke-linejoin": "round",
-        });
-        line.setAttribute("filter", "url(#glow-gold)");
-        top.appendChild(line);
-        treeGroup.appendChild(top);
-      }
-    }
   }
 
   updateProgress();
