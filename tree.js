@@ -1048,6 +1048,23 @@ async function computeElkLayoutIfAvailable() {
       }
     }
 
+    // Bring careers closer to the central clusters (shorter edges, less empty space).
+    const careers = SKILLS.filter(s => s && !s.panelOnly && (s.tier === "career" || s.nodeType === "career"));
+    if (careers.length) {
+      const left = [];
+      const right = [];
+      careers.forEach((c, i) => ((i % 2 === 0) ? left : right).push(c));
+      const colX = 650;
+      const topY = cy + 260;
+      const botY = cy + 820;
+      const placeCol = (arr, x) => {
+        const step = (botY - topY) / Math.max(1, arr.length);
+        arr.forEach((c, i) => { c.x = x; c.y = topY + (i + 0.5) * step; });
+      };
+      placeCol(left, cx - colX);
+      placeCol(right, cx + colX);
+    }
+
     // Light collision pass so clusters don't overlap after shifting.
     const movable = SKILLS.filter(s => s && !s.panelOnly && s.id !== "expert");
     const minDist = 28 * 2 + 70;
