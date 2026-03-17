@@ -968,31 +968,61 @@ function fitToView() {
   const pad = 80;
   const bw = bbox.width + pad * 2;
   const bh = bbox.height + pad * 2;
-  const scale = Math.min(W / bw, H / bh) * 0.98;
-  let x = (W - bw * scale) / 2 - (bbox.x - pad) * scale;
-  let y = (H - bh * scale) / 2 - (bbox.y - pad) * scale;
+  let scale = Math.min(W / bw, H / bh) * 0.98;
 
-  // Additionally center the Expert node (so the "goal" is visually centered).
-  // Node positions are in tree coords; nodes are drawn at (x+OX, y+OY).
-  const OX = 60, OY = 50;
-  const exSk = SKILL_MAP.expert;
-  if (exSk) {
-    const ex = (exSk.x + OX) * scale + x;
-    const ey = (exSk.y + OY) * scale + y;
-    const dx = (W / 2) - ex;
-    const dy = (H / 2) - ey;
-    x += dx;
-    y += dy;
+  // Center on the *rendered* Expert node position (translate(x,y) of its <g>),
+  // and reduce scale if needed to keep the overall graph in view.
+  const expertG = document.getElementById("node-expert");
+  const parseTranslate = (el) => {
+    const t = el?.getAttribute("transform") || "";
+    const m = t.match(/translate\(([-0-9.]+)[ ,]([-0-9.]+)\)/);
+    return m ? { x: Number(m[1]), y: Number(m[2]) } : null;
+  };
+  const ep = parseTranslate(expertG);
 
-    // Clamp so the bbox still stays within padded view.
-    const minX = W - (bbox.x + bbox.width + pad) * scale;
-    const maxX = - (bbox.x - pad) * scale;
-    const minY = H - (bbox.y + bbox.height + pad) * scale;
-    const maxY = - (bbox.y - pad) * scale;
-    x = Math.max(minX, Math.min(maxX, x));
-    y = Math.max(minY, Math.min(maxY, y));
+  if (ep) {
+    const bx0 = bbox.x - pad;
+    const bx1 = bbox.x + bbox.width + pad;
+    const by0 = bbox.y - pad;
+    const by1 = bbox.y + bbox.height + pad;
+
+    const upperBounds = [];
+    const addUpper = (val) => { if (isFinite(val) && val > 0) upperBounds.push(val); };
+
+    // With x = W/2 - ep.x*scale, keep left/right within padding:
+    // left = W/2 + (bx0-ep.x)*scale >= pad
+    // right = W/2 + (bx1-ep.x)*scale <= W-pad
+    const cL = (bx0 - ep.x);
+    const rL = (pad - W / 2);
+    if (cL < 0) addUpper(rL / cL); // dividing by negative flips to an upper bound
+
+    const cR = (bx1 - ep.x);
+    const rR = (W / 2 - pad);
+    if (cR > 0) addUpper(rR / cR);
+
+    // With y = H/2 - ep.y*scale, keep top/bottom within padding:
+    const cT = (by0 - ep.y);
+    const rT = (pad - H / 2);
+    if (cT < 0) addUpper(rT / cT);
+
+    const cB = (by1 - ep.y);
+    const rB = (H / 2 - pad);
+    if (cB > 0) addUpper(rB / cB);
+
+    if (upperBounds.length) {
+      scale = Math.min(scale, ...upperBounds);
+    }
+
+    const x = (W / 2) - ep.x * scale;
+    const y = (H / 2) - ep.y * scale;
+    state.transform = { x, y, scale };
+    applyTransform();
+    return;
   }
 
+  // Fallback: center bbox if Expert node isn't measurable.
+  const x = (W - bw * scale) / 2 - (bbox.x - pad) * scale;
+  const y = (H - bh * scale) / 2 - (bbox.y - pad) * scale;
   state.transform = { x, y, scale };
   applyTransform();
 }
