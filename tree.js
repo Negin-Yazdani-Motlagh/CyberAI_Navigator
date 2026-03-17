@@ -1014,6 +1014,59 @@ async function computeElkLayoutIfAvailable() {
     sk.x = (n.x || 0) + (n.width || 0) / 2;
     sk.y = (n.y || 0) + (n.height || 0) / 2;
   }
+
+  // Post-layout styling: make the map feel less "row-like" and closer to the reference:
+  // Knowledge cluster top-right, Skills cluster top-left, Dispositions near the middle.
+  const expert = SKILL_MAP.expert;
+  if (expert) {
+    const cx = expert.x;
+    const cy = expert.y;
+    for (const sk of SKILLS) {
+      if (!sk || sk.panelOnly) continue;
+      if (sk.id === "expert") continue;
+      const isCareer = sk.tier === "career" || sk.nodeType === "career";
+      if (isCareer) continue;
+
+      const layer = sk.cc2020Layer;
+      let dx = 0, dy = 0;
+      if (layer === "knowledge") { dx = 320; dy = -140; }
+      else if (layer === "skills") { dx = -320; dy = -140; }
+      else if (layer === "dispositions") { dx = 0; dy = 160; }
+
+      // Apply a gentle pull toward the cluster target, not a hard snap.
+      sk.x = sk.x + dx;
+      sk.y = sk.y + dy;
+
+      // Keep nodes within a reasonable radius of the Expert hub.
+      const maxR = 980;
+      const vx = sk.x - cx;
+      const vy = sk.y - cy;
+      const r = Math.max(1, Math.hypot(vx, vy));
+      if (r > maxR) {
+        sk.x = cx + (vx / r) * maxR;
+        sk.y = cy + (vy / r) * maxR;
+      }
+    }
+
+    // Light collision pass so clusters don't overlap after shifting.
+    const movable = SKILLS.filter(s => s && !s.panelOnly && s.id !== "expert");
+    const minDist = 28 * 2 + 70;
+    for (let iter = 0; iter < 5; iter++) {
+      for (let i = 0; i < movable.length; i++) {
+        for (let j = i + 1; j < movable.length; j++) {
+          const a = movable[i], b = movable[j];
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const d = Math.max(1, Math.hypot(dx, dy));
+          if (d >= minDist) continue;
+          const push = (minDist - d) * 0.5;
+          const ux = dx / d, uy = dy / d;
+          a.x -= ux * push; a.y -= uy * push;
+          b.x += ux * push; b.y += uy * push;
+        }
+      }
+    }
+  }
   return true;
 }
 
