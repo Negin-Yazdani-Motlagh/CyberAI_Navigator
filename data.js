@@ -86,20 +86,26 @@ function buildMapNodes() {
 
   const totalWidth = 2500;
   const centerX = totalWidth / 2;
-  const expertY = 90;
-  const careersY = 1580;
+  const centerY = 950;
+  const expertY = centerY;
+  const careersTopY = 300;
+  const careersBottomY = 1550;
 
   positions.set("expert", { x: centerX, y: expertY });
 
-  // Career anchors: bottom arc for a more "map-like" feel.
-  const careerRowWidth = 1850;
-  const careerStep = careerRowWidth / (pathIds.length + 1);
-  const careerLeft = (totalWidth - careerRowWidth) / 2;
-  pathIds.forEach((id, i) => {
-    const x = careerLeft + (i + 1) * careerStep;
-    const arc = Math.sin(((i + 1) / (pathIds.length + 1)) * Math.PI) * 60;
-    positions.set(id, { x, y: careersY + arc });
-  });
+  // Career anchors: split to left/right columns to frame the map.
+  const leftX = 220;
+  const rightX = totalWidth - 220;
+  const left = [];
+  const right = [];
+  pathIds.forEach((id, i) => ((i % 2 === 0) ? left : right).push(id));
+
+  const placeColumn = (ids, x) => {
+    const step = (careersBottomY - careersTopY) / Math.max(1, ids.length);
+    ids.forEach((id, i) => positions.set(id, { x, y: careersTopY + (i + 0.5) * step }));
+  };
+  placeColumn(left, leftX);
+  placeColumn(right, rightX);
 
   // Build usage stats for shared nodes.
   const usage = new Map(); // nodeId -> { sumX, sumT, n }
@@ -142,15 +148,19 @@ function buildMapNodes() {
     const u = usage.get(nodeId);
     const jitter = (hash01(nodeId) - 0.5);
     const x = u ? (u.sumX / u.n) : centerX;
-    // Map progress t into y without rigid bands; still ensures later nodes sit higher.
     const t = u ? (u.sumT / u.n) : 0.5;
-    const y = careersY - (careersY - expertY) * (0.18 + 0.78 * t) + jitter * 80;
+    // Map progress to radius around the Expert hub: later nodes closer to center.
+    const rMax = 720;
+    const rMin = 170;
+    const r = rMax - (rMax - rMin) * t;
+    const angle = (hash01(nodeId) * Math.PI * 2);
+    const y = centerY + Math.sin(angle) * r + jitter * 50;
 
-    // Slight type-based nudges to keep the visual language (K lower than S lower than D).
-    const typeNudge = def.type === "knowledge" ? 140 : def.type === "skill" ? 40 : def.type === "disposition" ? -90 : 0;
+    // Slight type-based nudges to keep the visual language (K a bit farther out than S than D).
+    const typeNudge = def.type === "knowledge" ? 90 : def.type === "skill" ? 0 : def.type === "disposition" ? -80 : 0;
     positions.set(nodeId, {
-      x: Math.max(120, Math.min(totalWidth - 120, x + jitter * 90)),
-      y: Math.max(expertY + 80, Math.min(careersY - 80, y + typeNudge)),
+      x: Math.max(180, Math.min(totalWidth - 180, x + Math.cos(angle) * typeNudge + jitter * 70)),
+      y: Math.max(140, Math.min(careersBottomY - 80, y + Math.sin(angle) * typeNudge)),
     });
   }
 
@@ -158,7 +168,7 @@ function buildMapNodes() {
   const movable = Array.from(nodeIds)
     .filter(id => id !== "expert" && NODE_DEFS[id] && NODE_DEFS[id].type !== "career")
     .map(id => ({ id, type: NODE_DEFS[id].type }));
-  const minDist = NODE_RADIUS * 2 + 70;
+  const minDist = NODE_RADIUS * 2 + 78;
   for (let iter = 0; iter < 6; iter++) {
     for (let a = 0; a < movable.length; a++) {
       const ida = movable[a].id;
@@ -175,15 +185,15 @@ function buildMapNodes() {
         const push = (minDist - d) * 0.5;
         const ux = dx / d, uy = dy / d;
         // Prefer horizontal separation to preserve upward flow; small vertical component helps untangle.
-        const kx = 1.0;
-        const ky = 0.35;
+        const kx = 0.9;
+        const ky = 0.6;
         positions.set(ida, {
-          x: Math.max(120, Math.min(totalWidth - 120, pa.x - ux * push * kx)),
-          y: Math.max(expertY + 80, Math.min(careersY - 80, pa.y - uy * push * ky)),
+          x: Math.max(180, Math.min(totalWidth - 180, pa.x - ux * push * kx)),
+          y: Math.max(140, Math.min(careersBottomY - 80, pa.y - uy * push * ky)),
         });
         positions.set(idb, {
-          x: Math.max(120, Math.min(totalWidth - 120, pb.x + ux * push * kx)),
-          y: Math.max(expertY + 80, Math.min(careersY - 80, pb.y + uy * push * ky)),
+          x: Math.max(180, Math.min(totalWidth - 180, pb.x + ux * push * kx)),
+          y: Math.max(140, Math.min(careersBottomY - 80, pb.y + uy * push * ky)),
         });
       }
     }
@@ -191,7 +201,7 @@ function buildMapNodes() {
 
   // Minor manual nudge: keep Ethical Responsibility from overlapping Systems Thinking.
   const er = positions.get("ethical_resp");
-  if (er) positions.set("ethical_resp", { x: er.x, y: Math.max(expertY + 80, er.y - 60) });
+  if (er) positions.set("ethical_resp", { x: er.x, y: Math.max(140, er.y - 60) });
 
   const skills = [];
   nodeIds.forEach(id => {
