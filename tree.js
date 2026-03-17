@@ -1239,6 +1239,9 @@ computeElkLayoutIfAvailable()
   .catch(() => false)
   .finally(() => {
     buildTree();
+    // Fit after layout + after DOM paints (prevents "still off-center" cases).
     fitToView();
+    requestAnimationFrame(() => fitToView());
+    setTimeout(() => fitToView(), 120);
     initCareerMapping();
   });
