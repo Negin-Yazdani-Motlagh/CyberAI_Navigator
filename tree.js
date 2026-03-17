@@ -152,6 +152,50 @@ function buildTree() {
     return o ? { x: o.x, y: o.y } : { x: sk.x, y: sk.y };
   };
 
+  const getLayerKey = (sk) => {
+    if (!sk) return null;
+    if (sk.id === "expert") return "expert";
+    if (sk.tier === "career" || sk.nodeType === "career") return "career";
+    return sk.cc2020Layer || null; // "knowledge" | "skills" | "dispositions"
+  };
+
+  // "Invisible routing hubs": shared corridors to bundle edges and reduce crossings.
+  // These are just control points for edge paths (no visible nodes).
+  const expertPos0 = SKILL_MAP.expert ? getXY(SKILL_MAP.expert) : { x: CW / 2, y: CH / 2 };
+  const HUBS = {
+    knowledge: { x: expertPos0.x + 520, y: expertPos0.y - 340 },
+    skills: { x: expertPos0.x - 520, y: expertPos0.y - 340 },
+    dispositions: { x: expertPos0.x, y: expertPos0.y + 160 },
+    career: { x: expertPos0.x, y: expertPos0.y + 620 },
+    expert: { x: expertPos0.x, y: expertPos0.y },
+  };
+
+  const pathViaHubs = (fx, fy, tx, ty, fromLayer, toLayer) => {
+    const a = HUBS[fromLayer] || null;
+    const b = HUBS[toLayer] || null;
+    if (!a && !b) return `M ${fx} ${fy} L ${tx} ${ty}`;
+    const pts = [{ x: fx, y: fy }];
+    const addHub = (h) => {
+      if (!h) return;
+      pts.push({ x: h.x, y: h.y });
+    };
+    // Route: from → hub(from) → hub(to) → to (skipping duplicates)
+    addHub(a);
+    if (!b || !a || a.x !== b.x || a.y !== b.y) addHub(b);
+    pts.push({ x: tx, y: ty });
+
+    // Convert to an orthogonal-ish polyline by inserting L bends.
+    // We keep it simple: horizontal to next hub x, then vertical to next hub y.
+    let d = `M ${pts[0].x} ${pts[0].y}`;
+    for (let i = 1; i < pts.length; i++) {
+      const prev = pts[i - 1];
+      const cur = pts[i];
+      // two-segment Manhattan move for cleaner bundles
+      d += ` L ${cur.x} ${prev.y} L ${cur.x} ${cur.y}`;
+    }
+    return d;
+  };
+
   const pathColor = getPathColor();
   // Keep legend pinned near the bottom, even if ELK places nodes low.
   const legendY = CH - 12;
@@ -269,9 +313,14 @@ function buildTree() {
       const curve = Math.min(80, Math.abs(dx) * 0.3);
       const c1x = fx + curve, c1y = fy;
       const c2x = tx - curve, c2y = ty;
-      pathD = (hasActivePath && onPath)
-        ? `M ${fx} ${fy} L ${tx} ${ty}`
-        : `M ${fx} ${fy} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${tx} ${ty}`;
+      if (hasActivePath && onPath) {
+        pathD = `M ${fx} ${fy} L ${tx} ${ty}`;
+      } else {
+        // Bundle non-selected edges through zone hubs to reduce crossings/noise.
+        const fromLayer = getLayerKey(from) || "skills";
+        const toLayer = getLayerKey(to) || "skills";
+        pathD = pathViaHubs(fx, fy, tx, ty, fromLayer, toLayer);
+      }
     }
 
     const baseWidth = 3;
