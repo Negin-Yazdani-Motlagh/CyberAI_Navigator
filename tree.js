@@ -225,7 +225,7 @@ function buildTree() {
     const unlocked   = state.unlocked.has(edge.from) && state.unlocked.has(edge.to);
     const onPath     = !hasActivePath || edgeOnSelectedPath(edge.from, edge.to);
     const toExpert   = to.id === "expert";
-    const psToExpert = edge.from === "problem_solving" && edge.to === "expert";
+    const psToExpert = edge.from === "systems_thinking" && edge.to === "expert";
     // Base coordinates from node centres
     const fx0 = from.x + OX, fy0 = from.y + OY, tx0 = to.x + OX, ty0 = to.y + OY;
     let fx, fy, tx, ty;
@@ -499,10 +499,10 @@ function buildTree() {
     // Extra safety: if Problem Solving and Expert are both in the path,
     // draw a VERY clear, direct gold line between their centres so the
     // final hop is ALWAYS visible.
-    const psIndex = selectedPath.indexOf("problem_solving");
+    const psIndex = selectedPath.indexOf("systems_thinking");
     const exIndex = selectedPath.indexOf("expert");
     if (psIndex !== -1 && exIndex !== -1) {
-      const from = SKILL_MAP["problem_solving"];
+      const from = SKILL_MAP["systems_thinking"];
       const to = SKILL_MAP["expert"];
       if (from && to && !from.panelOnly && !to.panelOnly) {
         // Draw a slightly offset gold segment from Problem Solving to Expert so
@@ -547,8 +547,8 @@ function buildTree() {
   //
   // IMPORTANT: Use the *rendered* node positions from the DOM (the <g transform="translate(x,y)">),
   // not SKILL_MAP coordinates, so this cannot drift due to layout/offset math.
-  if (selectedPath && selectedPath.indexOf("problem_solving") !== -1 && selectedPath.indexOf("expert") !== -1) {
-    const fromG = document.getElementById("node-problem_solving");
+  if (selectedPath && selectedPath.indexOf("systems_thinking") !== -1 && selectedPath.indexOf("expert") !== -1) {
+    const fromG = document.getElementById("node-systems_thinking");
     const toG = document.getElementById("node-expert");
     if (fromG && toG) {
       const parseTranslate = (el) => {

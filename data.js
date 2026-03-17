@@ -39,7 +39,7 @@ const NODE_DEFS = {
   communication: { id: "communication", label: "Communication", type: "disposition", layer: 4, icon: "💬", desc: "Communicating clearly with technical and non-technical audiences." },
   ethical_resp: { id: "ethical_resp", label: "Ethical Responsibility", type: "disposition", layer: 4, icon: "⚖️", desc: "Applying ethics in technical decisions." },
   security_mindset: { id: "security_mindset", label: "Security Mindset", type: "disposition", layer: 4, icon: "🔒", desc: "Thinking like an attacker; defense in depth." },
-  problem_solving: { id: "problem_solving", label: "Problem Solving", type: "disposition", layer: 4, icon: "🎯", desc: "Structured problem decomposition and solution finding." },
+  systems_thinking: { id: "systems_thinking", label: "Systems Thinking", type: "disposition", layer: 4, icon: "🧩", desc: "Holistic reasoning about complex systems and trade-offs." },
   collaboration: { id: "collaboration", label: "Collaboration", type: "disposition", layer: 4, icon: "🤝", desc: "Working effectively in teams." },
 };
 
@@ -47,24 +47,25 @@ const NODE_DEFS = {
 const CAREER_PATHS = {
   data_sci:     ["data_sci", "python", "sql", "statistics", "data_viz", "model_training", "experiment_design", "critical_thinking", "communication", "expert"],
   // ML Engineer path: include Python knowledge before Linear Algebra / ML Basics
-  ml_eng:       ["ml_eng", "python", "linear_algebra", "ml_basics", "deep_learning", "model_deployment", "mlops", "problem_solving", "expert"],
+  ml_eng:       ["ml_eng", "python", "linear_algebra", "ml_basics", "deep_learning", "model_deployment", "mlops", "systems_thinking", "expert"],
   pen_tester:   ["pen_tester", "python", "networking", "threat_models", "vuln_analysis", "security_arch", "ethical_resp", "security_mindset", "expert"],
-  sec_arch:     ["sec_arch", "networking", "cryptography", "threat_models", "security_arch", "vuln_analysis", "ethical_resp", "problem_solving", "expert"],
+  sec_arch:     ["sec_arch", "networking", "cryptography", "threat_models", "security_arch", "vuln_analysis", "ethical_resp", "systems_thinking", "expert"],
   ai_sec_eng:   ["ai_sec_eng", "python", "ml_basics", "threat_models", "model_deployment", "vuln_analysis", "ethical_resp", "security_mindset", "expert"],
   threat_intel: ["threat_intel", "python", "statistics", "threat_models", "threat_intel_skill", "data_viz", "critical_thinking", "communication", "expert"],
-  edge_ai_eng:  ["edge_ai_eng", "python", "ml_basics", "model_deployment", "mlops", "problem_solving", "expert"],
-  embedded_ml_eng: ["embedded_ml_eng", "python", "linear_algebra", "ml_basics", "deep_learning", "model_deployment", "problem_solving", "expert"],
+  edge_ai_eng:  ["edge_ai_eng", "python", "ml_basics", "model_deployment", "mlops", "systems_thinking", "expert"],
+  embedded_ml_eng: ["embedded_ml_eng", "python", "linear_algebra", "ml_basics", "deep_learning", "model_deployment", "systems_thinking", "expert"],
 };
 
 // Career metadata for panel (path careers only)
 const CAREER_META = {
   data_sci:     { label: "Data Scientist",           desc: "Extracts insights from data to drive decisions. Path: Start → Python, SQL, Statistics → Data Viz, Model Training, Experiment Design → Critical Thinking, Communication → Expert.", knowledge: ["Python / R", "SQL", "Statistics"],           skills: ["Data Visualization", "Model Training", "Experiment Design"], dispositions: ["Critical Thinking", "Communication"] },
+  ml_eng:       { label: "Machine Learning Engineer", desc: "Builds and deploys production ML systems. Path: Start → Python, Linear Algebra, ML Basics → Deep Learning, Model Deployment, MLOps → Systems Thinking → Expert.", knowledge: ["Python / R", "Linear Algebra", "ML Basics"],   skills: ["Deep Learning", "Model Deployment", "MLOps"],            dispositions: ["Systems Thinking"] },
   pen_tester:   { label: "Penetration Tester",       desc: "Finds and reports vulnerabilities. Path: Start → Python, Networking, Threat Models → Vuln Analysis, Security Arch → Ethical Responsibility, Security Mindset → Expert.", knowledge: ["Python / R", "Networking", "Threat Models"], skills: ["Vulnerability Analysis", "Security Architecture"],     dispositions: ["Ethical Responsibility", "Security Mindset"] },
-  sec_arch:     { label: "Security Architect",       desc: "Designs organizational security. Path: Start → Networking, Cryptography, Threat Models → Security Arch, Vuln Analysis → Ethical Responsibility, Problem Solving → Expert.", knowledge: ["Networking", "Cryptography", "Threat Models"],  skills: ["Security Architecture", "Vulnerability Analysis"],    dispositions: ["Ethical Responsibility", "Problem Solving"] },
+  sec_arch:     { label: "Security Architect",       desc: "Designs organizational security. Path: Start → Networking, Cryptography, Threat Models → Security Arch, Vuln Analysis → Ethical Responsibility, Systems Thinking → Expert.", knowledge: ["Networking", "Cryptography", "Threat Models"],  skills: ["Security Architecture", "Vulnerability Analysis"],    dispositions: ["Ethical Responsibility", "Systems Thinking"] },
   ai_sec_eng:   { label: "AI Security Engineer",    desc: "Secures AI/ML systems. Path: Start → Python, ML Basics, Threat Models → Model Deployment, Vuln Analysis → Ethical Responsibility, Security Mindset → Expert.", knowledge: ["Python / R", "ML Basics", "Threat Models"],   skills: ["Model Deployment", "Vulnerability Analysis"],          dispositions: ["Ethical Responsibility", "Security Mindset"] },
   threat_intel: { label: "Threat Intel Engineer",    desc: "Uses AI/ML for threat detection. Path: Start → Python, Statistics, Threat Models → Threat Intel, Data Viz → Critical Thinking, Communication → Expert.", knowledge: ["Python / R", "Statistics", "Threat Models"], skills: ["Threat Intelligence", "Data Visualization"],         dispositions: ["Critical Thinking", "Communication"] },
-  edge_ai_eng:  { label: "Edge AI Engineer",         desc: "Deploys ML models on edge devices with performance and reliability constraints. Path: Start → Python, ML Basics → Model Deployment, MLOps → Problem Solving → Expert.", knowledge: ["Python / R", "ML Basics"], skills: ["Model Deployment", "MLOps"], dispositions: ["Problem Solving"] },
-  embedded_ml_eng: { label: "Embedded ML Engineer",  desc: "Builds and optimizes ML for embedded systems. Path: Start → Python, Linear Algebra, ML Basics → Deep Learning → Model Deployment → Problem Solving → Expert.", knowledge: ["Python / R", "Linear Algebra", "ML Basics"], skills: ["Deep Learning", "Model Deployment"], dispositions: ["Problem Solving"] },
+  edge_ai_eng:  { label: "Edge AI Engineer",         desc: "Deploys ML models on edge devices with performance and reliability constraints. Path: Start → Python, ML Basics → Model Deployment, MLOps → Systems Thinking → Expert.", knowledge: ["Python / R", "ML Basics"], skills: ["Model Deployment", "MLOps"], dispositions: ["Systems Thinking"] },
+  embedded_ml_eng: { label: "Embedded ML Engineer",  desc: "Builds and optimizes ML for embedded systems. Path: Start → Python, Linear Algebra, ML Basics → Deep Learning → Model Deployment → Systems Thinking → Expert.", knowledge: ["Python / R", "Linear Algebra", "ML Basics"], skills: ["Deep Learning", "Model Deployment"], dispositions: ["Systems Thinking"] },
 };
 
 // ── Tree/branch layout: depth from Start, x by path-order (no global columns) ─
@@ -185,7 +186,7 @@ function buildPathEdges() {
 
   // Safety: ensure ALL disposition → Expert links are present.
   const dispositionToExpert = [
-    "communication", "security_mindset", "problem_solving"
+    "communication", "security_mindset", "systems_thinking"
   ];
   for (const dispId of dispositionToExpert) {
     const key = `${dispId}->expert`;
