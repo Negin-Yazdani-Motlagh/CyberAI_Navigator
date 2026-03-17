@@ -985,34 +985,9 @@ function fitToView() {
     const bx1 = bbox.x + bbox.width + pad;
     const by0 = bbox.y - pad;
     const by1 = bbox.y + bbox.height + pad;
-
-    const upperBounds = [];
-    const addUpper = (val) => { if (isFinite(val) && val > 0) upperBounds.push(val); };
-
-    // With x = W/2 - ep.x*scale, keep left/right within padding:
-    // left = W/2 + (bx0-ep.x)*scale >= pad
-    // right = W/2 + (bx1-ep.x)*scale <= W-pad
-    const cL = (bx0 - ep.x);
-    const rL = (pad - W / 2);
-    if (cL < 0) addUpper(rL / cL); // dividing by negative flips to an upper bound
-
-    const cR = (bx1 - ep.x);
-    const rR = (W / 2 - pad);
-    if (cR > 0) addUpper(rR / cR);
-
-    // With y = H/2 - ep.y*scale, keep top/bottom within padding:
-    const cT = (by0 - ep.y);
-    const rT = (pad - H / 2);
-    if (cT < 0) addUpper(rT / cT);
-
-    const cB = (by1 - ep.y);
-    const rB = (H / 2 - pad);
-    if (cB > 0) addUpper(rB / cB);
-
-    if (upperBounds.length) {
-      scale = Math.min(scale, ...upperBounds);
-    }
-
+    // Prioritize centering Expert exactly. Use a slightly smaller scale so the full
+    // graph usually still fits without needing clamping.
+    scale = Math.min(scale, (W / (bx1 - bx0)) * 0.92, (H / (by1 - by0)) * 0.92);
     const x = (W / 2) - ep.x * scale;
     const y = (H / 2) - ep.y * scale;
     state.transform = { x, y, scale };
