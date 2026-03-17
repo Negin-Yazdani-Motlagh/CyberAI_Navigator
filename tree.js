@@ -226,6 +226,9 @@ function buildTree() {
     const onPath     = !hasActivePath || edgeOnSelectedPath(edge.from, edge.to);
     const toExpert   = to.id === "expert";
     const psToExpert = edge.from === "systems_thinking" && edge.to === "expert";
+    // We draw a dedicated topmost line for systems_thinking → Expert; skip the
+    // base edge here to avoid double lines.
+    if (psToExpert) continue;
     // Base coordinates from node centres
     const fx0 = from.x + OX, fy0 = from.y + OY, tx0 = to.x + OX, ty0 = to.y + OY;
     let fx, fy, tx, ty;
@@ -447,6 +450,10 @@ function buildTree() {
       const to = SKILL_MAP[toId];
       if (!from || !to) continue;
       if (from.panelOnly || to.panelOnly) continue;
+
+      // The final Systems Thinking → Expert segment is drawn once in the
+      // topmost block; skip it here so we don't get two lines.
+      if (fromId === "systems_thinking" && toId === "expert") continue;
 
       const isToExpert = to.id === "expert";
       // Trim overlay segments slightly so they meet node rings cleanly.

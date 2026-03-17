@@ -135,7 +135,7 @@ function buildMapNodes() {
   // place Systems Thinking near Expert (slight X offset).
   const expertPos = positions.get("expert");
   if (expertPos) {
-    positions.set("systems_thinking", { x: expertPos.x + 180, y: dispositionsY });
+    positions.set("systems_thinking", { x: expertPos.x + 190, y: dispositionsY + 40 });
   }
 
   const skills = [];
