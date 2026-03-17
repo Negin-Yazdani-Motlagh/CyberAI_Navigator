@@ -89,8 +89,8 @@ function buildMapNodes() {
   const centerY = 950;
   const expertY = centerY;
   // Pull careers closer to the central skill clusters for shorter edges.
-  const careersTopY = 420;
-  const careersBottomY = 1420;
+  const careersTopY = 220;
+  const careersBottomY = 920;
 
   positions.set("expert", { x: centerX, y: expertY });
 
