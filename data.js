@@ -135,7 +135,9 @@ function buildMapNodes() {
   // place Systems Thinking near Expert (slight X offset).
   const expertPos = positions.get("expert");
   if (expertPos) {
-    positions.set("systems_thinking", { x: expertPos.x + 190, y: dispositionsY + 40 });
+    // Push Systems Thinking further right and a bit lower so it doesn't visually
+    // overlap with Ethical Responsibility in the Security Architect path.
+    positions.set("systems_thinking", { x: expertPos.x + 260, y: dispositionsY + 60 });
   }
 
   const skills = [];
