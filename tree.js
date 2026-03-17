@@ -282,15 +282,16 @@ function buildTree() {
     const onPath     = !hasActivePath || edgeOnSelectedPath(edge.from, edge.to);
     const toExpert   = to.id === "expert";
     const psToExpert = edge.from === "systems_thinking" && edge.to === "expert";
+    const psOnPath = hasActivePath && edgeOnSelectedPath(edge.from, edge.to);
     // Base coordinates from node centres (respect any override positions)
     const fp = getXY(from);
     const tp = getXY(to);
     const fx0 = fp.x + OX, fy0 = fp.y + OY, tx0 = tp.x + OX, ty0 = tp.y + OY;
     let fx, fy, tx, ty;
     let pathD;
-    if (psToExpert) {
-      // Special case: draw a bold, straight centre‑to‑centre line for
-      // Problem Solving → Expert so it is absolutely obvious.
+    if (psToExpert && psOnPath) {
+      // Special case: only when selected, draw a bold, straight centre‑to‑centre line for
+      // Systems Thinking → Expert so it is absolutely obvious.
       fx = fx0; fy = fy0; tx = tx0; ty = ty0;
       pathD = `M ${fx} ${fy} L ${tx} ${ty}`;
     } else {
@@ -330,12 +331,12 @@ function buildTree() {
     const baseOpacity = unlocked ? 0.9 : 0.35;
     // Edge colour always follows the TARGET band (Knowledge/Skills/Dispositions/Expert),
     // even when a career is selected; highlight is conveyed via width + glow.
-    const edgeStroke = psToExpert ? EXPERT_COLOR : getEdgeColorFrom(from, to);
-    const strokeW = psToExpert
-      ? 16
+    const edgeStroke = (psToExpert && psOnPath) ? EXPERT_COLOR : getEdgeColorFrom(from, to);
+    const strokeW = (psToExpert && psOnPath)
+      ? 18
       : (hasActivePath ? (onPath ? (toExpert ? toExpertWidth : activeWidth) : 2) : (toExpert ? 2.5 : baseWidth));
-    const edgeOpacity = psToExpert
-      ? 0.85
+    const edgeOpacity = (psToExpert && psOnPath)
+      ? 1
       : (hasActivePath ? (onPath ? 1 : 0.08) : (toExpert ? 0.18 : baseOpacity * 0.35));
     const pathAttrs = {
       d: pathD,
@@ -348,7 +349,7 @@ function buildTree() {
       "stroke-linecap": "round",
       "stroke-linejoin": "round",
     };
-    if (psToExpert) pathAttrs.filter = "url(#glow-gold)";
+    if (psToExpert && psOnPath) pathAttrs.filter = "url(#glow-gold)";
     else if (hasActivePath && onPath) pathAttrs.filter = "url(#glow-gold)";
     else if (toExpert) pathAttrs.filter = "url(#glow-gold)";
     const pathEl = svgEl("path", pathAttrs);
@@ -619,7 +620,7 @@ function buildTree() {
   //
   // IMPORTANT: Use the *rendered* node positions from the DOM (the <g transform="translate(x,y)">),
   // not SKILL_MAP coordinates, so this cannot drift due to layout/offset math.
-  if (selectedPath && selectedPath.indexOf("systems_thinking") !== -1 && selectedPath.indexOf("expert") !== -1) {
+  if (selectedPath && selectedPath.indexOf("systems_thinking") !== -1 && selectedPath.indexOf("expert") !== -1 && state.selected) {
     const fromG = document.getElementById("node-systems_thinking");
     const toG = document.getElementById("node-expert");
     if (fromG && toG) {
