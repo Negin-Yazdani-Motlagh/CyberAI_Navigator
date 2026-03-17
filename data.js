@@ -88,14 +88,15 @@ function buildMapNodes() {
   const centerX = totalWidth / 2;
   const centerY = 950;
   const expertY = centerY;
-  const careersTopY = 300;
-  const careersBottomY = 1550;
+  // Pull careers closer to the central skill clusters for shorter edges.
+  const careersTopY = 420;
+  const careersBottomY = 1420;
 
   positions.set("expert", { x: centerX, y: expertY });
 
   // Career anchors: split to left/right columns to frame the map.
-  const leftX = 220;
-  const rightX = totalWidth - 220;
+  const leftX = 340;
+  const rightX = totalWidth - 340;
   const left = [];
   const right = [];
   pathIds.forEach((id, i) => ((i % 2 === 0) ? left : right).push(id));
