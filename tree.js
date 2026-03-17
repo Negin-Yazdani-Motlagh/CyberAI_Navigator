@@ -224,23 +224,19 @@ function buildTree() {
     return false;
   };
 
-  // ── Edges (clean map): draw edges ONLY for selected career ───────────
-  // This keeps the map visually calm (no noisy cross-lines) until a career is selected.
+  // ── Edges (full map) ────────────────────────────────────────────────
+  // Draw all edges, but keep non-selected ones subtle to reduce noise.
   const hasActivePath = !!selectedPath;
-  if (hasActivePath) for (const edge of EDGES) {
+  for (const edge of EDGES) {
     const from = SKILL_MAP[edge.from];
     const to   = SKILL_MAP[edge.to];
     if (!from || !to) continue;
     if (from.panelOnly || to.panelOnly) continue;
 
     const unlocked   = state.unlocked.has(edge.from) && state.unlocked.has(edge.to);
-    const onPath     = edgeOnSelectedPath(edge.from, edge.to);
-    if (!onPath) continue;
+    const onPath     = !hasActivePath || edgeOnSelectedPath(edge.from, edge.to);
     const toExpert   = to.id === "expert";
     const psToExpert = edge.from === "systems_thinking" && edge.to === "expert";
-    // We draw a dedicated topmost line for systems_thinking → Expert; skip the
-    // base edge here to avoid double lines.
-    if (psToExpert) continue;
     // Base coordinates from node centres (respect any override positions)
     const fp = getXY(from);
     const tp = getXY(to);
@@ -285,8 +281,12 @@ function buildTree() {
     // Edge colour always follows the TARGET band (Knowledge/Skills/Dispositions/Expert),
     // even when a career is selected; highlight is conveyed via width + glow.
     const edgeStroke = psToExpert ? EXPERT_COLOR : getEdgeColorFrom(from, to);
-    const strokeW = psToExpert ? 18 : (toExpert ? toExpertWidth : activeWidth);
-    const edgeOpacity = 1;
+    const strokeW = psToExpert
+      ? 16
+      : (hasActivePath ? (onPath ? (toExpert ? toExpertWidth : activeWidth) : 2) : (toExpert ? 2.5 : baseWidth));
+    const edgeOpacity = psToExpert
+      ? 0.85
+      : (hasActivePath ? (onPath ? 1 : 0.08) : (toExpert ? 0.18 : baseOpacity * 0.35));
     const pathAttrs = {
       d: pathD,
       class: `edge-line ${unlocked ? "unlocked" : "locked"} ${toExpert ? "edge-to-expert" : ""} ${onPath && hasActivePath ? "path-active" : ""}`,
@@ -658,40 +658,7 @@ function selectSkill(id) {
       state.activeEdges.add(`${path[i]}->${path[i + 1]}`);
     }
 
-    // Guided-path layout for this career: place nodes on a smooth curve from the
-    // career node to Expert to avoid crossings and look more like the reference.
-    const full = (path[path.length - 1] === "expert") ? path : [...path, "expert"];
-    const start = SKILL_MAP[id];
-    const end = SKILL_MAP["expert"];
-    if (start && end) {
-      const n = full.length;
-      const sx = start.x, sy = start.y;
-      const ex = end.x, ey = end.y;
-      const mx = (sx + ex) / 2;
-      const my = (sy + ey) / 2;
-      const side = (sx < ex) ? -1 : 1;
-      const ctrl = { x: mx + side * 260, y: my - 180 };
-      const bez2 = (t) => {
-        const a = (1 - t) * (1 - t);
-        const b = 2 * (1 - t) * t;
-        const c = t * t;
-        return {
-          x: a * sx + b * ctrl.x + c * ex,
-          y: a * sy + b * ctrl.y + c * ey,
-        };
-      };
-
-      const ov = new Map();
-      for (let i = 0; i < n; i++) {
-        const nodeId = full[i];
-        const sk = SKILL_MAP[nodeId];
-        if (!sk || sk.panelOnly) continue;
-        const t = n === 1 ? 0 : i / (n - 1);
-        const p = bez2(t);
-        ov.set(nodeId, p);
-      }
-      state.layoutOverride = ov;
-    }
+    // Keep shared-node positions (no per-career overrides) so the map stays consistent.
   } else if (skill?.id === "expert" || skill?.id === "start" || skill?.nodeType) {
     state.activePath = new Set([id]);
   } else {
