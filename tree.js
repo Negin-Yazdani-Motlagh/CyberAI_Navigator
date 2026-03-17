@@ -14,6 +14,9 @@ const state = {
   activeEdges: new Set(), // edges on active career path ("from->to")
   xp: 0,
   transform: { x: 0, y: 0, scale: 1 },
+  // When a career is selected, we can temporarily override node positions
+  // to render a clean, non-crossing "guided path" for that career.
+  layoutOverride: null, // Map<id,{x,y}> | null
 };
 
 // ── Path helper: one linear path per career (from CAREER_PATHS) ───────────
@@ -144,6 +147,11 @@ function buildTree() {
   const CW = 2500;
   const CH = 2000;
 
+  const getXY = (sk) => {
+    const o = state.layoutOverride && sk ? state.layoutOverride.get(sk.id) : null;
+    return o ? { x: o.x, y: o.y } : { x: sk.x, y: sk.y };
+  };
+
   const pathColor = getPathColor();
   // Keep legend pinned near the bottom, even if ELK places nodes low.
   const legendY = CH - 12;
@@ -181,7 +189,8 @@ function buildTree() {
   // Expert halo (optional)
   const expertSkill = SKILL_MAP.expert;
   if (expertSkill && !expertSkill.panelOnly) {
-    const ex = expertSkill.x + OX, ey = expertSkill.y + OY;
+    const epos = getXY(expertSkill);
+    const ex = epos.x + OX, ey = epos.y + OY;
     const haloG = svgEl("g", { "pointer-events": "none" });
     const haloR = (expertSkill.radius || 32) + 60;
     haloG.appendChild(svgEl("circle", { cx: ex, cy: ey, r: haloR, fill: "none", stroke: EXPERT_COLOR, "stroke-width": 4, opacity: 0.35 }));
@@ -232,8 +241,10 @@ function buildTree() {
     // We draw a dedicated topmost line for systems_thinking → Expert; skip the
     // base edge here to avoid double lines.
     if (psToExpert) continue;
-    // Base coordinates from node centres
-    const fx0 = from.x + OX, fy0 = from.y + OY, tx0 = to.x + OX, ty0 = to.y + OY;
+    // Base coordinates from node centres (respect any override positions)
+    const fp = getXY(from);
+    const tp = getXY(to);
+    const fx0 = fp.x + OX, fy0 = fp.y + OY, tx0 = tp.x + OX, ty0 = tp.y + OY;
     let fx, fy, tx, ty;
     let pathD;
     if (psToExpert) {
@@ -311,9 +322,10 @@ function buildTree() {
     const r         = skill.radius + boost;
     const iconSize  = ICON_SIZE[skill.tier] || 20;
 
+    const p = getXY(skill);
     const g = svgEl("g", {
       id: `node-${skill.id}`,
-      transform: `translate(${skill.x + OX},${skill.y + OY})`,
+      transform: `translate(${p.x + OX},${p.y + OY})`,
       class: `node-group node-layer-${layer}`,
       opacity: hasActivePath ? (onPath ? 1 : 0.12) : 1,
     });
@@ -458,8 +470,10 @@ function buildTree() {
       // Trim overlay segments slightly so they meet node rings cleanly.
       // For the final segment into Expert, draw center-to-center to avoid any
       // perception of a missing last link due to trimming.
-      const fx0 = from.x + OX, fy0 = from.y + OY;
-      const tx0 = to.x + OX, ty0 = to.y + OY;
+      const fp = getXY(from);
+      const tp = getXY(to);
+      const fx0 = fp.x + OX, fy0 = fp.y + OY;
+      const tx0 = tp.x + OX, ty0 = tp.y + OY;
       const dx0 = tx0 - fx0, dy0 = ty0 - fy0;
       const dist = Math.max(1, Math.hypot(dx0, dy0));
       const ux = dx0 / dist, uy = dy0 / dist;
@@ -513,10 +527,12 @@ function buildTree() {
       if (from && to && !from.panelOnly && !to.panelOnly) {
         // Draw a slightly offset gold segment from Problem Solving to Expert so
         // it is clearly visible even if the direct center line is under nodes.
-        const fx0 = from.x + OX;
-        const fy0 = from.y + OY;
-        const tx0 = to.x + OX;
-        const ty0 = to.y + OY;
+        const fp = getXY(from);
+        const tp = getXY(to);
+        const fx0 = fp.x + OX;
+        const fy0 = fp.y + OY;
+        const tx0 = tp.x + OX;
+        const ty0 = tp.y + OY;
         const dx0 = tx0 - fx0;
         const dy0 = ty0 - fy0;
         const dist = Math.max(1, Math.hypot(dx0, dy0));
@@ -634,11 +650,47 @@ function selectSkill(id) {
   state.selected = id;
   const skill = SKILL_MAP[id];
   state.activeEdges = new Set();
+  state.layoutOverride = null;
   if (skill?.tier === "career" && typeof CAREER_PATHS !== "undefined" && CAREER_PATHS[id]) {
     const path = CAREER_PATHS[id];
     state.activePath = new Set(path);
     for (let i = 0; i < path.length - 1; i++) {
       state.activeEdges.add(`${path[i]}->${path[i + 1]}`);
+    }
+
+    // Guided-path layout for this career: place nodes on a smooth curve from the
+    // career node to Expert to avoid crossings and look more like the reference.
+    const full = (path[path.length - 1] === "expert") ? path : [...path, "expert"];
+    const start = SKILL_MAP[id];
+    const end = SKILL_MAP["expert"];
+    if (start && end) {
+      const n = full.length;
+      const sx = start.x, sy = start.y;
+      const ex = end.x, ey = end.y;
+      const mx = (sx + ex) / 2;
+      const my = (sy + ey) / 2;
+      const side = (sx < ex) ? -1 : 1;
+      const ctrl = { x: mx + side * 260, y: my - 180 };
+      const bez2 = (t) => {
+        const a = (1 - t) * (1 - t);
+        const b = 2 * (1 - t) * t;
+        const c = t * t;
+        return {
+          x: a * sx + b * ctrl.x + c * ex,
+          y: a * sy + b * ctrl.y + c * ey,
+        };
+      };
+
+      const ov = new Map();
+      for (let i = 0; i < n; i++) {
+        const nodeId = full[i];
+        const sk = SKILL_MAP[nodeId];
+        if (!sk || sk.panelOnly) continue;
+        const t = n === 1 ? 0 : i / (n - 1);
+        const p = bez2(t);
+        ov.set(nodeId, p);
+      }
+      state.layoutOverride = ov;
     }
   } else if (skill?.id === "expert" || skill?.id === "start" || skill?.nodeType) {
     state.activePath = new Set([id]);
