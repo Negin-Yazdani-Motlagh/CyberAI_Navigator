@@ -214,16 +214,18 @@ function buildTree() {
     return false;
   };
 
-  // ── Edges (skip panel-only nodes) ─────────────────────────────────────
+  // ── Edges (clean map): draw edges ONLY for selected career ───────────
+  // This keeps the map visually calm (no noisy cross-lines) until a career is selected.
   const hasActivePath = !!selectedPath;
-  for (const edge of EDGES) {
+  if (hasActivePath) for (const edge of EDGES) {
     const from = SKILL_MAP[edge.from];
     const to   = SKILL_MAP[edge.to];
     if (!from || !to) continue;
     if (from.panelOnly || to.panelOnly) continue;
 
     const unlocked   = state.unlocked.has(edge.from) && state.unlocked.has(edge.to);
-    const onPath     = !hasActivePath || edgeOnSelectedPath(edge.from, edge.to);
+    const onPath     = edgeOnSelectedPath(edge.from, edge.to);
+    if (!onPath) continue;
     const toExpert   = to.id === "expert";
     const psToExpert = edge.from === "systems_thinking" && edge.to === "expert";
     // We draw a dedicated topmost line for systems_thinking → Expert; skip the
@@ -271,12 +273,8 @@ function buildTree() {
     // Edge colour always follows the TARGET band (Knowledge/Skills/Dispositions/Expert),
     // even when a career is selected; highlight is conveyed via width + glow.
     const edgeStroke = psToExpert ? EXPERT_COLOR : getEdgeColorFrom(from, to);
-    const strokeW = psToExpert
-      ? 18
-      : (hasActivePath ? (onPath ? (toExpert ? toExpertWidth : activeWidth) : 1.2) : (toExpert ? 2.5 : baseWidth));
-    const edgeOpacity = psToExpert
-      ? 1
-      : (hasActivePath ? (onPath ? 1 : 0.05) : (toExpert ? 0.2 : baseOpacity));
+    const strokeW = psToExpert ? 18 : (toExpert ? toExpertWidth : activeWidth);
+    const edgeOpacity = 1;
     const pathAttrs = {
       d: pathD,
       class: `edge-line ${unlocked ? "unlocked" : "locked"} ${toExpert ? "edge-to-expert" : ""} ${onPath && hasActivePath ? "path-active" : ""}`,
