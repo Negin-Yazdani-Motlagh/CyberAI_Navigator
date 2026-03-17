@@ -942,7 +942,6 @@ function fitToView() {
   const W = container.clientWidth;
   const H = container.clientHeight;
   // Temporarily clear transform to measure correctly.
-  const prev = state.transform;
   state.transform = { x: 0, y: 0, scale: 1 };
   applyTransform();
 
@@ -951,23 +950,6 @@ function fitToView() {
     bbox = treeGroup.getBBox();
   } catch {
     bbox = null;
-  }
-
-  // Include UI overlay bounds too (legend).
-  if (uiGroup) {
-    try {
-      const ub = uiGroup.getBBox();
-      if (ub) {
-        if (!bbox) bbox = ub;
-        else {
-          const x0 = Math.min(bbox.x, ub.x);
-          const y0 = Math.min(bbox.y, ub.y);
-          const x1 = Math.max(bbox.x + bbox.width, ub.x + ub.width);
-          const y1 = Math.max(bbox.y + bbox.height, ub.y + ub.height);
-          bbox = { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
-        }
-      }
-    } catch {}
   }
 
   if (!bbox || !isFinite(bbox.width) || !isFinite(bbox.height) || bbox.width <= 0 || bbox.height <= 0) {
@@ -987,8 +969,30 @@ function fitToView() {
   const bw = bbox.width + pad * 2;
   const bh = bbox.height + pad * 2;
   const scale = Math.min(W / bw, H / bh) * 0.98;
-  const x = (W - bw * scale) / 2 - (bbox.x - pad) * scale;
-  const y = (H - bh * scale) / 2 - (bbox.y - pad) * scale;
+  let x = (W - bw * scale) / 2 - (bbox.x - pad) * scale;
+  let y = (H - bh * scale) / 2 - (bbox.y - pad) * scale;
+
+  // Additionally center the Expert node (so the "goal" is visually centered).
+  // Node positions are in tree coords; nodes are drawn at (x+OX, y+OY).
+  const OX = 60, OY = 50;
+  const exSk = SKILL_MAP.expert;
+  if (exSk) {
+    const ex = (exSk.x + OX) * scale + x;
+    const ey = (exSk.y + OY) * scale + y;
+    const dx = (W / 2) - ex;
+    const dy = (H / 2) - ey;
+    x += dx;
+    y += dy;
+
+    // Clamp so the bbox still stays within padded view.
+    const minX = W - (bbox.x + bbox.width + pad) * scale;
+    const maxX = - (bbox.x - pad) * scale;
+    const minY = H - (bbox.y + bbox.height + pad) * scale;
+    const maxY = - (bbox.y - pad) * scale;
+    x = Math.max(minX, Math.min(maxX, x));
+    y = Math.max(minY, Math.min(maxY, y));
+  }
+
   state.transform = { x, y, scale };
   applyTransform();
 }
