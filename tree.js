@@ -949,7 +949,78 @@ document.getElementById("intro-dismiss").addEventListener("click", () => {
   setTimeout(() => banner.style.display = "none", 300);
 });
 
+// ── Layout (ELK) ───────────────────────────────────────────────────────────
+async function computeElkLayoutIfAvailable() {
+  if (typeof ELK === "undefined") return false;
+  if (!Array.isArray(SKILLS) || !Array.isArray(EDGES)) return false;
+
+  const elk = new ELK();
+
+  const getPartition = (sk) => {
+    // Smaller partition index = earlier in layered order (top when direction=DOWN).
+    if (!sk) return 3;
+    if (sk.id === "expert") return 0;
+    if (sk.tier === "career" || sk.nodeType === "career") return 4;
+    if (sk.cc2020Layer === "dispositions") return 1;
+    if (sk.cc2020Layer === "skills") return 2;
+    if (sk.cc2020Layer === "knowledge") return 3;
+    return 3;
+  };
+
+  const nodes = SKILLS
+    .filter(s => !s.panelOnly)
+    .map(s => {
+      const r = (s.radius || 28) + 18; // breathing room
+      return {
+        id: s.id,
+        width: r * 2,
+        height: r * 2,
+        layoutOptions: {
+          // Partitioning forces coarse vertical ordering without rigid rows.
+          "elk.layered.partitioning.partition": String(getPartition(s)),
+        },
+      };
+    });
+
+  const edges = EDGES
+    .map((e, idx) => ({ id: `e${idx}`, sources: [e.from], targets: [e.to] }))
+    .filter(e => SKILL_MAP[e.sources[0]] && SKILL_MAP[e.targets[0]] && !SKILL_MAP[e.sources[0]].panelOnly && !SKILL_MAP[e.targets[0]].panelOnly);
+
+  const graph = {
+    id: "root",
+    layoutOptions: {
+      algorithm: "layered",
+      "elk.direction": "DOWN",
+      "elk.layered.spacing.nodeNodeBetweenLayers": "110",
+      "elk.spacing.nodeNode": "70",
+      "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX",
+      "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+      "elk.layered.edgeRouting": "ORTHOGONAL",
+      "elk.layered.partitioning.activate": "true",
+      "elk.layered.cycleBreaking.strategy": "GREEDY",
+    },
+    children: nodes,
+    edges,
+  };
+
+  const out = await elk.layout(graph);
+  if (!out || !Array.isArray(out.children)) return false;
+
+  // Apply layout back to SKILL_MAP (tree draws at x+OX,y+OY).
+  for (const n of out.children) {
+    const sk = SKILL_MAP[n.id];
+    if (!sk) continue;
+    sk.x = (n.x || 0) + (n.width || 0) / 2;
+    sk.y = (n.y || 0) + (n.height || 0) / 2;
+  }
+  return true;
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────
-buildTree();
-fitToView();
-initCareerMapping();
+computeElkLayoutIfAvailable()
+  .catch(() => false)
+  .finally(() => {
+    buildTree();
+    fitToView();
+    initCareerMapping();
+  });
