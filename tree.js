@@ -505,19 +505,31 @@ function buildTree() {
       const from = SKILL_MAP["problem_solving"];
       const to = SKILL_MAP["expert"];
       if (from && to && !from.panelOnly && !to.panelOnly) {
-        // Draw centre-to-centre with a very thick gold stroke that
-        // literally crosses both nodes. This ignores trimming math so
-        // it cannot visually disappear.
-        const fx = from.x + OX;
-        const fy = from.y + OY;
-        const tx = to.x + OX;
-        const ty = to.y + OY;
+        // Draw a slightly offset gold segment from Problem Solving to Expert so
+        // it is clearly visible even if the direct center line is under nodes.
+        const fx0 = from.x + OX;
+        const fy0 = from.y + OY;
+        const tx0 = to.x + OX;
+        const ty0 = to.y + OY;
+        const dx0 = tx0 - fx0;
+        const dy0 = ty0 - fy0;
+        const dist = Math.max(1, Math.hypot(dx0, dy0));
+        const ux = dx0 / dist;
+        const uy = dy0 / dist;
+        // perpendicular unit vector for small sideways offset
+        const px = -uy;
+        const py = ux;
+        const offset = 10;
+        const fx = fx0 + px * offset;
+        const fy = fy0 + py * offset;
+        const tx = tx0 + px * offset;
+        const ty = ty0 + py * offset;
         const d = `M ${fx} ${fy} L ${tx} ${ty}`;
         const psSeg = svgEl("path", {
           d,
           fill: "none",
           stroke: EXPERT_COLOR,
-          "stroke-width": 26,
+          "stroke-width": 22,
           opacity: 1,
           "stroke-linecap": "round",
           "stroke-linejoin": "round",
@@ -530,6 +542,35 @@ function buildTree() {
     treeGroup.appendChild(overlay);
   }
 
+  // Topmost: one gold line Problem Solving → Expert when that path is selected.
+  // Drawn last so it is never covered by nodes; boundary-to-boundary so it sits in the gap.
+  if (selectedPath && selectedPath.indexOf("problem_solving") !== -1 && selectedPath.indexOf("expert") !== -1) {
+    const from = SKILL_MAP["problem_solving"];
+    const to = SKILL_MAP["expert"];
+    if (from && to && !from.panelOnly && !to.panelOnly) {
+      const top = svgEl("g", { id: "ps-expert-top", "pointer-events": "none" });
+      const fx0 = from.x + OX, fy0 = from.y + OY, tx0 = to.x + OX, ty0 = to.y + OY;
+      const dx = tx0 - fx0, dy = ty0 - fy0;
+      const dist = Math.max(1, Math.hypot(dx, dy));
+      const ux = dx / dist, uy = dy / dist;
+      const rFrom = Math.max(14, renderRadius(from));
+      const rTo = Math.max(14, renderRadius(to));
+      const x1 = fx0 + ux * rFrom, y1 = fy0 + uy * rFrom;
+      const x2 = tx0 - ux * rTo, y2 = ty0 - uy * rTo;
+      const line = svgEl("path", {
+        d: `M ${x1} ${y1} L ${x2} ${y2}`,
+        fill: "none",
+        stroke: EXPERT_COLOR,
+        "stroke-width": 30,
+        opacity: 1,
+        "stroke-linecap": "round",
+        "stroke-linejoin": "round",
+      });
+      line.setAttribute("filter", "url(#glow-gold)");
+      top.appendChild(line);
+      treeGroup.appendChild(top);
+    }
+  }
 
   updateProgress();
 }

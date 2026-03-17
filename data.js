@@ -7,7 +7,7 @@ const NODE_DEFS = {
   expert:   { id: "expert",   label: "EXPERT",                type: "expert",      layer: 4, icon: "⭐", desc: "The goal of every path. Deep expertise in your chosen career." },
   // Career nodes (one per job at bottom of map) — 2 per category
   data_sci:     { id: "data_sci",     label: "Data Scientist",    type: "career", layer: 0, icon: "📊", desc: "Extracts insights from data to drive decisions." },
-  ml_eng:       { id: "ml_eng",       label: "ML Engineer",       type: "career", layer: 0, icon: "🤖", desc: "Builds and deploys production ML systems." },
+  ml_eng:       { id: "ml_eng",       label: "Machine Learning Engineer", type: "career", layer: 0, icon: "🤖", desc: "Builds and deploys production ML systems." },
   pen_tester:   { id: "pen_tester",   label: "Pen Tester",        type: "career", layer: 0, icon: "🔓", desc: "Finds and reports vulnerabilities." },
   sec_arch:     { id: "sec_arch",     label: "Security Architect", type: "career", layer: 0, icon: "🏗️", desc: "Designs organizational security." },
   ai_sec_eng:   { id: "ai_sec_eng",   label: "AI Security Eng",   type: "career", layer: 0, icon: "🔐", desc: "Secures AI/ML systems." },
@@ -59,7 +59,6 @@ const CAREER_PATHS = {
 // Career metadata for panel (path careers only)
 const CAREER_META = {
   data_sci:     { label: "Data Scientist",           desc: "Extracts insights from data to drive decisions. Path: Start → Python, SQL, Statistics → Data Viz, Model Training, Experiment Design → Critical Thinking, Communication → Expert.", knowledge: ["Python / R", "SQL", "Statistics"],           skills: ["Data Visualization", "Model Training", "Experiment Design"], dispositions: ["Critical Thinking", "Communication"] },
-  ml_eng:       { label: "ML Engineer",              desc: "Builds and deploys production ML systems. Path: Start → Python, Linear Algebra, ML Basics → Deep Learning, Model Deployment, MLOps → Problem Solving → Expert.", knowledge: ["Python / R", "Linear Algebra", "ML Basics"],   skills: ["Deep Learning", "Model Deployment", "MLOps"],            dispositions: ["Problem Solving"] },
   pen_tester:   { label: "Penetration Tester",       desc: "Finds and reports vulnerabilities. Path: Start → Python, Networking, Threat Models → Vuln Analysis, Security Arch → Ethical Responsibility, Security Mindset → Expert.", knowledge: ["Python / R", "Networking", "Threat Models"], skills: ["Vulnerability Analysis", "Security Architecture"],     dispositions: ["Ethical Responsibility", "Security Mindset"] },
   sec_arch:     { label: "Security Architect",       desc: "Designs organizational security. Path: Start → Networking, Cryptography, Threat Models → Security Arch, Vuln Analysis → Ethical Responsibility, Problem Solving → Expert.", knowledge: ["Networking", "Cryptography", "Threat Models"],  skills: ["Security Architecture", "Vulnerability Analysis"],    dispositions: ["Ethical Responsibility", "Problem Solving"] },
   ai_sec_eng:   { label: "AI Security Engineer",    desc: "Secures AI/ML systems. Path: Start → Python, ML Basics, Threat Models → Model Deployment, Vuln Analysis → Ethical Responsibility, Security Mindset → Expert.", knowledge: ["Python / R", "ML Basics", "Threat Models"],   skills: ["Model Deployment", "Vulnerability Analysis"],          dispositions: ["Ethical Responsibility", "Security Mindset"] },
@@ -100,8 +99,8 @@ function buildMapNodes() {
   const centerX = totalWidth / 2;
 
   // Give extra headroom so the final step into Expert is clearly visible.
-  const expertY = 30;
-  const TOP_GAP = 170; // extra spacing between Expert and the disposition row
+  const expertY = 20;
+  const TOP_GAP = 230; // extra spacing between Expert and the disposition row
   const dispositionsY = expertY + DEPTH_STEP + TOP_GAP;
   const skillsY = dispositionsY + DEPTH_STEP;
   const knowledgeY = skillsY + DEPTH_STEP;
@@ -184,12 +183,16 @@ function buildPathEdges() {
     }
   });
 
-  // Safety: ensure the final "Problem Solving → Expert" link is always present.
-  // Some careers end with Problem Solving; this guarantees that hop is never missing.
-  const psKey = "problem_solving->expert";
-  if (!seen.has(psKey)) {
-    seen.add(psKey);
-    edges.push({ from: "problem_solving", to: "expert" });
+  // Safety: ensure ALL disposition → Expert links are present.
+  const dispositionToExpert = [
+    "communication", "security_mindset", "problem_solving"
+  ];
+  for (const dispId of dispositionToExpert) {
+    const key = `${dispId}->expert`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      edges.push({ from: dispId, to: "expert" });
+    }
   }
 
   return edges;
