@@ -154,6 +154,10 @@ function buildMapNodes() {
     });
   }
 
+  // Minor manual nudge: keep Ethical Responsibility from overlapping Systems Thinking.
+  const er = positions.get("ethical_resp");
+  if (er) positions.set("ethical_resp", { x: er.x, y: Math.max(expertY + 80, er.y - 60) });
+
   const skills = [];
   nodeIds.forEach(id => {
     const def = NODE_DEFS[id];
