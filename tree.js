@@ -1077,8 +1077,59 @@ async function computeElkLayoutIfAvailable() {
   // Knowledge cluster top-right, Skills cluster top-left, Dispositions near the middle.
   const expert = SKILL_MAP.expert;
   if (expert) {
+    // Anchor Expert to the true "intersection center" between the Skills and Knowledge clusters,
+    // then translate the whole non-career graph with it (careers are positioned separately later).
+    const nonCareer0 = SKILLS.filter(s =>
+      s && !s.panelOnly && (s.id === "expert" || (!(s.tier === "career" || s.nodeType === "career")))
+    );
+    const skillsNodes0 = SKILLS.filter(s =>
+      s && !s.panelOnly && !(s.tier === "career" || s.nodeType === "career") && s.cc2020Layer === "skills"
+    );
+    const knowledgeNodes0 = SKILLS.filter(s =>
+      s && !s.panelOnly && !(s.tier === "career" || s.nodeType === "career") && s.cc2020Layer === "knowledge"
+    );
+    const avg = (arr, key) => arr.length ? (arr.reduce((a, n) => a + (n[key] || 0), 0) / arr.length) : null;
+    const sx = avg(skillsNodes0, "x");
+    const kx = avg(knowledgeNodes0, "x");
+
+    const topCluster0 = SKILLS.filter(s =>
+      s && !s.panelOnly && s.id !== "expert" &&
+      !(s.tier === "career" || s.nodeType === "career") &&
+      (s.cc2020Layer === "knowledge" || s.cc2020Layer === "skills")
+    );
+    const topMaxY0 = topCluster0.length ? Math.max(...topCluster0.map(n => n.y)) : expert.y;
+
+    const desiredExpertX = (sx != null && kx != null) ? ((sx + kx) / 2) : expert.x;
+    const desiredExpertY = topMaxY0 + 210; // sits just below the top clusters
+    const dx0 = desiredExpertX - expert.x;
+    const dy0 = desiredExpertY - expert.y;
+    if (nonCareer0.length && (Math.abs(dx0) > 1 || Math.abs(dy0) > 1)) {
+      for (const n of nonCareer0) {
+        n.x += dx0;
+        n.y += dy0;
+      }
+    }
+
     const cx = expert.x;
     const cy = expert.y;
+
+    // Average normalized order of a node across all career paths (0..1).
+    const avgOrder = (nodeId) => {
+      if (!nodeId || typeof CAREER_PATHS === "undefined") return 0.5;
+      let sum = 0;
+      let n = 0;
+      for (const careerId of Object.keys(CAREER_PATHS)) {
+        const p = CAREER_PATHS[careerId];
+        if (!Array.isArray(p) || p.length < 2) continue;
+        const idx = p.indexOf(nodeId);
+        if (idx <= 0) continue; // skip missing and career itself
+        const denom = Math.max(1, p.length - 1);
+        sum += idx / denom;
+        n += 1;
+      }
+      return n ? (sum / n) : 0.5;
+    };
+
     for (const sk of SKILLS) {
       if (!sk || sk.panelOnly) continue;
       if (sk.id === "expert") continue;
@@ -1106,21 +1157,85 @@ async function computeElkLayoutIfAvailable() {
       }
     }
 
-    // Careers should sit above the clusters (entry points).
+    // Organize nodes within each zone so paths don't "go far then come back".
+    // We place nodes along a simple left→right progression by their average order in paths.
+    const zoneCenters = {
+      knowledge: { x: cx + 520, y: cy - 340 },
+      skills: { x: cx - 520, y: cy - 340 },
+      // Dispositions get their own band BELOW Expert with extra clearance.
+      dispositions: { x: cx, y: cy + 320 },
+    };
+    const zoneSpread = {
+      knowledge: { x: 520, y: 140 },
+      skills: { x: 520, y: 140 },
+      dispositions: { x: 460, y: 180 },
+    };
+    const layers = ["knowledge", "skills", "dispositions"];
+    for (const layer of layers) {
+      const nodes = SKILLS.filter(s =>
+        s && !s.panelOnly && s.id !== "expert" && !(s.tier === "career" || s.nodeType === "career") && s.cc2020Layer === layer
+      );
+      const c = zoneCenters[layer];
+      const sp = zoneSpread[layer];
+      for (const n of nodes) {
+        const t = avgOrder(n.id); // 0..1
+        const x = c.x + (t - 0.5) * sp.x;
+        // mild curve so it looks organic, not perfectly flat
+        const y = c.y + Math.sin((t - 0.5) * Math.PI) * sp.y;
+        // soft move toward target position (keeps some ELK character)
+        n.x = n.x * 0.25 + x * 0.75;
+        n.y = n.y * 0.25 + y * 0.75;
+      }
+    }
+
+    // Hard-clearance: keep dispositions from overlapping the Expert node.
+    // If a disposition ends up too close vertically, push it down; then lightly spread them.
+    const dispositions = SKILLS.filter(s =>
+      s && !s.panelOnly && s.id !== "expert" && !(s.tier === "career" || s.nodeType === "career") && s.cc2020Layer === "dispositions"
+    );
+    if (dispositions.length) {
+      const EXPERT_CLEAR_Y = 240; // guaranteed vertical gap from Expert center
+      const minDispY = cy + EXPERT_CLEAR_Y;
+      for (const d of dispositions) d.y = Math.max(d.y, minDispY);
+
+      // Light spread pass (horizontal first) so disposition nodes don't stack.
+      const DISP_MIN_DIST = 28 * 2 + 80;
+      for (let iter = 0; iter < 5; iter++) {
+        for (let i = 0; i < dispositions.length; i++) {
+          for (let j = i + 1; j < dispositions.length; j++) {
+            const a = dispositions[i], b = dispositions[j];
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const dist = Math.max(1, Math.hypot(dx, dy));
+            if (dist >= DISP_MIN_DIST) continue;
+            const push = (DISP_MIN_DIST - dist) * 0.55;
+            const ux = dx / dist, uy = dy / dist;
+            // prefer horizontal separation to keep the band readable
+            a.x -= ux * push * 1.25; a.y -= uy * push * 0.35;
+            b.x += ux * push * 1.25; b.y += uy * push * 0.35;
+            a.y = Math.max(a.y, minDispY);
+            b.y = Math.max(b.y, minDispY);
+          }
+        }
+      }
+    }
+
+    // Careers should sit on the very top of the tree (entry points).
+    // Place them in a single compact row across the width.
     const careers = SKILLS.filter(s => s && !s.panelOnly && (s.tier === "career" || s.nodeType === "career"));
     if (careers.length) {
-      const left = [];
-      const right = [];
-      careers.forEach((c, i) => ((i % 2 === 0) ? left : right).push(c));
-      const colX = 640;
-      const topY = cy - 820;
-      const botY = cy - 260;
-      const placeCol = (arr, x) => {
-        const step = (botY - topY) / Math.max(1, arr.length);
-        arr.forEach((c, i) => { c.x = x; c.y = topY + (i + 0.5) * step; });
-      };
-      placeCol(left, cx - colX);
-      placeCol(right, cx + colX);
+      const nonCareer = SKILLS.filter(s => s && !s.panelOnly && s.id !== "expert" && !(s.tier === "career" || s.nodeType === "career"));
+      const minY = nonCareer.length ? Math.min(...nonCareer.map(n => n.y)) : (cy - 420);
+      const topBaseY = minY - 260;
+      const rows = 1;
+      const cols = careers.length;
+      const xStart = cx - 820;
+      const xEnd = cx + 820;
+      const xStep = (cols <= 1) ? 0 : (xEnd - xStart) / (cols - 1);
+      careers.forEach((c, i) => {
+        c.x = xStart + i * xStep;
+        c.y = topBaseY;
+      });
     }
 
     // Keep key "people" dispositions grouped near Ethical Responsibility
