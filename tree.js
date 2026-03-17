@@ -347,10 +347,11 @@ function buildTree() {
     const edgeStroke = getEdgeColorFrom(from, to);
     const strokeW = (psToExpert && psOnPath)
       ? 10
-      : (hasActivePath ? (onPath ? (toExpert ? toExpertWidth : activeWidth) : 2) : (toExpert ? 2.5 : baseWidth));
+      // When a career is selected, make non-path edges extremely subtle to avoid visual crossings.
+      : (hasActivePath ? (onPath ? (toExpert ? toExpertWidth : activeWidth) : 1) : (toExpert ? 2.5 : baseWidth));
     const edgeOpacity = (psToExpert && psOnPath)
       ? 1
-      : (hasActivePath ? (onPath ? 1 : 0.08) : (toExpert ? 0.18 : baseOpacity * 0.35));
+      : (hasActivePath ? (onPath ? 1 : 0.02) : (toExpert ? 0.14 : baseOpacity * 0.22));
     const pathAttrs = {
       d: pathD,
       class: `edge-line ${unlocked ? "unlocked" : "locked"} ${toExpert ? "edge-to-expert" : ""} ${onPath && hasActivePath ? "path-active" : ""}`,
