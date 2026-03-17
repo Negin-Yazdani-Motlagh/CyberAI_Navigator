@@ -937,15 +937,58 @@ function applyTransform() {
 }
 
 function fitToView() {
-  // Size the SVG viewBox to the tree's natural bounding area
+  // Fit to the actual rendered graph bounds (not a fixed canvas),
+  // so the layout stays centered even when ELK shifts nodes.
   const W = container.clientWidth;
   const H = container.clientHeight;
-  const TREE_W = 2500, TREE_H = 2000;
-  const scaleX = W / TREE_W;
-  const scaleY = H / TREE_H;
-  const scale = Math.min(scaleX, scaleY) * 0.9;
-  const x = (W - TREE_W * scale) / 2;
-  const y = (H - TREE_H * scale) / 2;
+  // Temporarily clear transform to measure correctly.
+  const prev = state.transform;
+  state.transform = { x: 0, y: 0, scale: 1 };
+  applyTransform();
+
+  let bbox = null;
+  try {
+    bbox = treeGroup.getBBox();
+  } catch {
+    bbox = null;
+  }
+
+  // Include UI overlay bounds too (legend).
+  if (uiGroup) {
+    try {
+      const ub = uiGroup.getBBox();
+      if (ub) {
+        if (!bbox) bbox = ub;
+        else {
+          const x0 = Math.min(bbox.x, ub.x);
+          const y0 = Math.min(bbox.y, ub.y);
+          const x1 = Math.max(bbox.x + bbox.width, ub.x + ub.width);
+          const y1 = Math.max(bbox.y + bbox.height, ub.y + ub.height);
+          bbox = { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
+        }
+      }
+    } catch {}
+  }
+
+  if (!bbox || !isFinite(bbox.width) || !isFinite(bbox.height) || bbox.width <= 0 || bbox.height <= 0) {
+    // fallback: restore previous behavior
+    const TREE_W = 2500, TREE_H = 2000;
+    const scaleX = W / TREE_W;
+    const scaleY = H / TREE_H;
+    const scale = Math.min(scaleX, scaleY) * 0.9;
+    const x = (W - TREE_W * scale) / 2;
+    const y = (H - TREE_H * scale) / 2;
+    state.transform = { x, y, scale };
+    applyTransform();
+    return;
+  }
+
+  const pad = 80;
+  const bw = bbox.width + pad * 2;
+  const bh = bbox.height + pad * 2;
+  const scale = Math.min(W / bw, H / bh) * 0.98;
+  const x = (W - bw * scale) / 2 - (bbox.x - pad) * scale;
+  const y = (H - bh * scale) / 2 - (bbox.y - pad) * scale;
   state.transform = { x, y, scale };
   applyTransform();
 }
