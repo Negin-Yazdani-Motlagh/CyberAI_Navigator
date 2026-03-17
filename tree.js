@@ -141,8 +141,8 @@ function buildTree() {
   // ── Canvas: layered roadmap (Start → K → S → D → Expert)
   const OX = 60;
   const OY = 50;
-  const CW = 2200;
-  const CH = 1850;
+  const CW = 2500;
+  const CH = 1950;
 
   const pathColor = getPathColor();
   const legendY = CH - 38;
@@ -868,7 +868,7 @@ function fitToView() {
   // Size the SVG viewBox to the tree's natural bounding area
   const W = container.clientWidth;
   const H = container.clientHeight;
-  const TREE_W = 2200, TREE_H = 1850;
+  const TREE_W = 2500, TREE_H = 1950;
   const scaleX = W / TREE_W;
   const scaleY = H / TREE_H;
   const scale = Math.min(scaleX, scaleY) * 0.9;

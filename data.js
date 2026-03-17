@@ -84,15 +84,15 @@ function buildMapNodes() {
   //   positioning based on average path progress (so order is respected without rigid rows).
   const positions = new Map();
 
-  const totalWidth = 2200;
+  const totalWidth = 2500;
   const centerX = totalWidth / 2;
   const expertY = 90;
-  const careersY = 1480;
+  const careersY = 1580;
 
   positions.set("expert", { x: centerX, y: expertY });
 
   // Career anchors: bottom arc for a more "map-like" feel.
-  const careerRowWidth = 1600;
+  const careerRowWidth = 1850;
   const careerStep = careerRowWidth / (pathIds.length + 1);
   const careerLeft = (totalWidth - careerRowWidth) / 2;
   pathIds.forEach((id, i) => {
@@ -144,14 +144,49 @@ function buildMapNodes() {
     const x = u ? (u.sumX / u.n) : centerX;
     // Map progress t into y without rigid bands; still ensures later nodes sit higher.
     const t = u ? (u.sumT / u.n) : 0.5;
-    const y = careersY - (careersY - expertY) * (0.18 + 0.78 * t) + jitter * 70;
+    const y = careersY - (careersY - expertY) * (0.18 + 0.78 * t) + jitter * 80;
 
     // Slight type-based nudges to keep the visual language (K lower than S lower than D).
-    const typeNudge = def.type === "knowledge" ? 120 : def.type === "skill" ? 30 : def.type === "disposition" ? -70 : 0;
+    const typeNudge = def.type === "knowledge" ? 140 : def.type === "skill" ? 40 : def.type === "disposition" ? -90 : 0;
     positions.set(nodeId, {
       x: Math.max(120, Math.min(totalWidth - 120, x + jitter * 90)),
       y: Math.max(expertY + 80, Math.min(careersY - 80, y + typeNudge)),
     });
+  }
+
+  // Gentle collision-avoidance pass (keeps layout organic but reduces overlaps).
+  const movable = Array.from(nodeIds)
+    .filter(id => id !== "expert" && NODE_DEFS[id] && NODE_DEFS[id].type !== "career")
+    .map(id => ({ id, type: NODE_DEFS[id].type }));
+  const minDist = NODE_RADIUS * 2 + 70;
+  for (let iter = 0; iter < 6; iter++) {
+    for (let a = 0; a < movable.length; a++) {
+      const ida = movable[a].id;
+      const pa = positions.get(ida);
+      if (!pa) continue;
+      for (let b = a + 1; b < movable.length; b++) {
+        const idb = movable[b].id;
+        const pb = positions.get(idb);
+        if (!pb) continue;
+        const dx = pb.x - pa.x;
+        const dy = pb.y - pa.y;
+        const d = Math.max(1, Math.hypot(dx, dy));
+        if (d >= minDist) continue;
+        const push = (minDist - d) * 0.5;
+        const ux = dx / d, uy = dy / d;
+        // Prefer horizontal separation to preserve upward flow; small vertical component helps untangle.
+        const kx = 1.0;
+        const ky = 0.35;
+        positions.set(ida, {
+          x: Math.max(120, Math.min(totalWidth - 120, pa.x - ux * push * kx)),
+          y: Math.max(expertY + 80, Math.min(careersY - 80, pa.y - uy * push * ky)),
+        });
+        positions.set(idb, {
+          x: Math.max(120, Math.min(totalWidth - 120, pb.x + ux * push * kx)),
+          y: Math.max(expertY + 80, Math.min(careersY - 80, pb.y + uy * push * ky)),
+        });
+      }
+    }
   }
 
   // Minor manual nudge: keep Ethical Responsibility from overlapping Systems Thinking.
