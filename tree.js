@@ -1135,6 +1135,26 @@ async function computeElkLayoutIfAvailable() {
       placeCol(right, cx + colX);
     }
 
+    // Keep key "people" dispositions grouped near Ethical Responsibility
+    // (so they read as a coherent set).
+    const ethical = SKILL_MAP.ethical_resp;
+    if (ethical) {
+      const targetIds = ["security_mindset", "critical_thinking", "communication"];
+      const offsets = {
+        security_mindset: { x: 140, y: 40 },
+        critical_thinking: { x: -140, y: 40 },
+        communication: { x: 0, y: 120 },
+      };
+      for (const id of targetIds) {
+        const n = SKILL_MAP[id];
+        if (!n) continue;
+        const off = offsets[id] || { x: 0, y: 0 };
+        // Soft pull toward ethical_resp plus a deterministic offset so they don't overlap.
+        n.x = n.x * 0.35 + (ethical.x + off.x) * 0.65;
+        n.y = n.y * 0.35 + (ethical.y + off.y) * 0.65;
+      }
+    }
+
     // Light collision pass so clusters don't overlap after shifting.
     const movable = SKILLS.filter(s => s && !s.panelOnly && s.id !== "expert");
     const minDist = 28 * 2 + 70;
