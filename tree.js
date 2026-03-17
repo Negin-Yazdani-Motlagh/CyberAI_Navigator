@@ -939,8 +939,10 @@ function applyTransform() {
 function fitToView() {
   // Fit to the actual rendered graph bounds (not a fixed canvas),
   // so the layout stays centered even when ELK shifts nodes.
-  const W = container.clientWidth;
-  const H = container.clientHeight;
+  // Use the SVG's on-screen size (more reliable than container in responsive layouts).
+  const rect = svg.getBoundingClientRect();
+  const W = Math.max(1, rect.width || svg.clientWidth || container.clientWidth);
+  const H = Math.max(1, rect.height || svg.clientHeight || container.clientHeight);
   // Temporarily clear transform to measure correctly.
   state.transform = { x: 0, y: 0, scale: 1 };
   applyTransform();
