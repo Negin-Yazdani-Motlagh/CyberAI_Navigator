@@ -145,11 +145,12 @@ function buildTree() {
   const CH = 2000;
 
   const pathColor = getPathColor();
-  const legendY = CH - 38;
+  // Keep legend pinned near the bottom, even if ELK places nodes low.
+  const legendY = CH - 12;
   const leg = (x, label, col) => {
     const g = svgEl("g", { "pointer-events": "none" });
-    g.appendChild(svgEl("circle", { cx: x, cy: legendY - 6, r: 6, fill: "none", stroke: col, "stroke-width": 2 }));
-    const t = svgEl("text", { x: x + 14, y: legendY - 6, "font-size": 10, fill: "rgba(255,255,255,0.8)", "dominant-baseline": "middle" });
+    g.appendChild(svgEl("circle", { cx: x, cy: legendY, r: 6, fill: "none", stroke: col, "stroke-width": 2 }));
+    const t = svgEl("text", { x: x + 14, y: legendY, "font-size": 10, fill: "rgba(255,255,255,0.8)", "dominant-baseline": "middle" });
     t.textContent = label;
     g.appendChild(t);
     return g;
@@ -162,7 +163,7 @@ function buildTree() {
   if (state.selected && typeof CAREER_PATHS !== "undefined" && CAREER_PATHS[state.selected]) {
     const jobLabel = (CAREER_META && CAREER_META[state.selected]) ? CAREER_META[state.selected].label : state.selected;
     const pathLeg = svgEl("text", {
-      x: 350, y: legendY - 6,
+      x: 350, y: legendY,
       "font-size": 10, fill: "rgba(255,255,255,0.9)", "dominant-baseline": "middle",
       "font-weight": "700", "pointer-events": "none",
     });
@@ -170,7 +171,7 @@ function buildTree() {
     treeGroup.appendChild(pathLeg);
   }
   const mapFlow = svgEl("text", {
-    x: 14, y: CH - 18,
+    x: 14, y: CH - 2,
     "font-size": 10, fill: "rgba(255,255,255,0.5)",
     "letter-spacing": "1", "pointer-events": "none",
   });
