@@ -132,10 +132,10 @@ function buildMapNodes() {
   placeRow(dispositionIds, dispositionsY);
 
   // Ensure the final "last disposition → Expert" hop is always visually clear:
-  // place Systems Thinking directly under Expert (same X).
+  // place Systems Thinking near Expert (slight X offset).
   const expertPos = positions.get("expert");
   if (expertPos) {
-    positions.set("systems_thinking", { x: expertPos.x, y: dispositionsY });
+    positions.set("systems_thinking", { x: expertPos.x + 180, y: dispositionsY });
   }
 
   const skills = [];
