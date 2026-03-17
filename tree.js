@@ -166,7 +166,8 @@ function buildTree() {
     knowledge: { x: expertPos0.x + 520, y: expertPos0.y - 340 },
     skills: { x: expertPos0.x - 520, y: expertPos0.y - 340 },
     dispositions: { x: expertPos0.x, y: expertPos0.y + 160 },
-    career: { x: expertPos0.x, y: expertPos0.y + 620 },
+    // Careers should sit above the clusters (closer to the top)
+    career: { x: expertPos0.x, y: expertPos0.y - 520 },
     expert: { x: expertPos0.x, y: expertPos0.y },
   };
 
@@ -1116,15 +1117,15 @@ async function computeElkLayoutIfAvailable() {
       }
     }
 
-    // Bring careers closer to the central clusters (shorter edges, less empty space).
+    // Careers should sit above the clusters (entry points).
     const careers = SKILLS.filter(s => s && !s.panelOnly && (s.tier === "career" || s.nodeType === "career"));
     if (careers.length) {
       const left = [];
       const right = [];
       careers.forEach((c, i) => ((i % 2 === 0) ? left : right).push(c));
-      const colX = 650;
-      const topY = cy + 260;
-      const botY = cy + 820;
+      const colX = 640;
+      const topY = cy - 820;
+      const botY = cy - 260;
       const placeCol = (arr, x) => {
         const step = (botY - topY) / Math.max(1, arr.length);
         arr.forEach((c, i) => { c.x = x; c.y = topY + (i + 0.5) * step; });
