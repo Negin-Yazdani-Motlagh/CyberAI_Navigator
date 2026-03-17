@@ -94,9 +94,9 @@ function buildMapNodes() {
 
   positions.set("expert", { x: centerX, y: expertY });
 
-  // Career anchors: split to left/right columns to frame the map.
-  const leftX = 340;
-  const rightX = totalWidth - 340;
+  // Career anchors: pull closer to the tree area.
+  const leftX = 520;
+  const rightX = totalWidth - 520;
   const left = [];
   const right = [];
   pathIds.forEach((id, i) => ((i % 2 === 0) ? left : right).push(id));
