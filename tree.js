@@ -543,32 +543,37 @@ function buildTree() {
   }
 
   // Topmost: one gold line Problem Solving → Expert when that path is selected.
-  // Drawn last so it is never covered by nodes; boundary-to-boundary so it sits in the gap.
+  // Drawn last so it is never covered by nodes.
+  //
+  // IMPORTANT: Use the *rendered* node positions from the DOM (the <g transform="translate(x,y)">),
+  // not SKILL_MAP coordinates, so this cannot drift due to layout/offset math.
   if (selectedPath && selectedPath.indexOf("problem_solving") !== -1 && selectedPath.indexOf("expert") !== -1) {
-    const from = SKILL_MAP["problem_solving"];
-    const to = SKILL_MAP["expert"];
-    if (from && to && !from.panelOnly && !to.panelOnly) {
-      const top = svgEl("g", { id: "ps-expert-top", "pointer-events": "none" });
-      const fx0 = from.x + OX, fy0 = from.y + OY, tx0 = to.x + OX, ty0 = to.y + OY;
-      const dx = tx0 - fx0, dy = ty0 - fy0;
-      const dist = Math.max(1, Math.hypot(dx, dy));
-      const ux = dx / dist, uy = dy / dist;
-      const rFrom = Math.max(14, renderRadius(from));
-      const rTo = Math.max(14, renderRadius(to));
-      const x1 = fx0 + ux * rFrom, y1 = fy0 + uy * rFrom;
-      const x2 = tx0 - ux * rTo, y2 = ty0 - uy * rTo;
-      const line = svgEl("path", {
-        d: `M ${x1} ${y1} L ${x2} ${y2}`,
-        fill: "none",
-        stroke: EXPERT_COLOR,
-        "stroke-width": 30,
-        opacity: 1,
-        "stroke-linecap": "round",
-        "stroke-linejoin": "round",
-      });
-      line.setAttribute("filter", "url(#glow-gold)");
-      top.appendChild(line);
-      treeGroup.appendChild(top);
+    const fromG = document.getElementById("node-problem_solving");
+    const toG = document.getElementById("node-expert");
+    if (fromG && toG) {
+      const parseTranslate = (el) => {
+        const t = el.getAttribute("transform") || "";
+        const m = t.match(/translate\(([-0-9.]+)[ ,]([-0-9.]+)\)/);
+        return m ? { x: Number(m[1]), y: Number(m[2]) } : null;
+      };
+      const fromP = parseTranslate(fromG);
+      const toP = parseTranslate(toG);
+      if (fromP && toP) {
+        const top = svgEl("g", { id: "ps-expert-top", "pointer-events": "none" });
+        const line = svgEl("path", {
+          id: "ps-expert-top-line",
+          d: `M ${fromP.x} ${fromP.y} L ${toP.x} ${toP.y}`,
+          fill: "none",
+          stroke: EXPERT_COLOR,
+          "stroke-width": 30,
+          opacity: 1,
+          "stroke-linecap": "round",
+          "stroke-linejoin": "round",
+        });
+        line.setAttribute("filter", "url(#glow-gold)");
+        top.appendChild(line);
+        treeGroup.appendChild(top);
+      }
     }
   }
 
